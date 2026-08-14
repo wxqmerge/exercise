@@ -18,7 +18,10 @@ npm run lint           # ESLint on src/ only
 ## Architecture
 
 ### Config (Server Is Source of Truth)
-The client does NOT read config from env vars at build time. Instead, the server exposes `/api/config` (`{ scheduleName, hikeDays }`) and the client fetches it at runtime. Server reads only root `.env` — `server/.env` is ignored (local-only, never committed).
+The client does NOT read config from env vars at build time. Instead, the server exposes `/api/config` (`{ dayMode, days }`) and the client fetches it at runtime.
+- `DAY_MODE=odd-even` → `days: ["Odd", "Even"]`
+- `DAY_MODE=numbered` + `DAY_COUNT=3` → `days: ["Day 1", "Day 2", "Day 3"]`
+Server reads only root `.env` — `server/.env` is ignored (local-only, never committed).
 
 ### Shared Types Compilation
 `server/package.json` build script runs 4 steps in order:
@@ -29,7 +32,7 @@ The client does NOT read config from env vars at build time. Instead, the server
 
 ## API Quirks
 - Write endpoints (`PUT`, `DELETE`, `POST`) require `X-API-Key` header (see `requireAdminKey` middleware)
-- **`/api/config`**: Returns `{ scheduleName, hikeDays }` — client should not hardcode these values.
+- **`/api/config`**: Returns `{ dayMode, days }` — client should not hardcode the day list.
 
 ## Dev Server Gotchas
 - Dev: Vite proxies `/api` and `/health` to `localhost:3000`

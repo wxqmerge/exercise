@@ -28,4 +28,13 @@ npm run dev:all
 
 ## Environment
 Copy `.env` values from your environment (never committed). Server reads root `.env`:
-`PORT`, `DOMAIN`, `SCHEDULE_NAME`, `HIKE_DAYS`, `ADMIN_API_KEY`, `NODE_ENV`, `CORS_ORIGINS`.
+`PORT`, `DOMAIN`, `DAY_MODE`, `DAY_COUNT`, `ADMIN_API_KEY`, `NODE_ENV`, `CORS_ORIGINS`.
+
+- `DAY_MODE=odd-even` → day picker shows Odd / Even
+- `DAY_MODE=numbered` + `DAY_COUNT=3` → day picker shows Day 1 / Day 2 / Day 3
+
+## How it works
+1. Pick a day (list comes from `/api/config`)
+2. Each exercise shows an image, or a "No image — click to search" link (Google image search)
+3. Enter reps and weight, click **Next** (or **Finish** on the last one)
+4. Summary screen lists all exercises with reps/weight and total volume

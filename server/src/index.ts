@@ -87,10 +87,14 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 app.get('/api/config', (_req, res) => {
-  res.json({
-    scheduleName: process.env.SCHEDULE_NAME || 'default',
-    hikeDays: process.env.HIKE_DAYS || '3,5',
-  });
+  const dayMode = process.env.DAY_MODE === 'numbered' ? 'numbered' : 'odd-even';
+  const days = dayMode === 'numbered'
+    ? Array.from(
+        { length: Math.max(1, parseInt(process.env.DAY_COUNT || '3', 10) || 3) },
+        (_, i) => `Day ${i + 1}`,
+      )
+    : ['Odd', 'Even'];
+  res.json({ dayMode, days });
 });
 
 app.get('/api/admin/ping', requireAdminKey, (_req, res) => {

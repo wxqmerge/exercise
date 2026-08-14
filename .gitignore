@@ -20,10 +20,8 @@ deploy/.env
 deploy/*.conf
 
 # Environment secrets (never commit)
-.env
-.env.production
-.env_sothh
-.env_ramblers
+.env*
+!/.env.example
 
 # Shared build artifacts
 shared/types/*.js.map

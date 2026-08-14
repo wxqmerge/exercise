@@ -1,14 +1,18 @@
 import '@testing-library/jest-dom/vitest';
 import { vi, beforeEach } from 'vitest';
 
-const mockConfig = { scheduleName: 'test', hikeDays: '3,5' };
+const DEFAULT_CONFIG = { dayMode: 'odd-even', days: ['Odd', 'Even'] };
+
+const mockData = {
+  config: { ...DEFAULT_CONFIG },
+};
 
 const createFetchMock = () => {
   return vi.fn((url, options) => {
     if (typeof url === 'string' && url === '/api/config') {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(mockConfig),
+        json: () => Promise.resolve(mockData.config),
       });
     }
     if (options?.method === 'PUT' || options?.method === 'DELETE' || options?.method === 'POST') {
@@ -29,6 +33,7 @@ globalThis.fetch = createFetchMock();
 
 beforeEach(() => {
   globalThis.fetch = createFetchMock();
+  mockData.config = { ...DEFAULT_CONFIG };
 });
 
 Object.defineProperty(window, 'location', {
@@ -69,4 +74,4 @@ Object.defineProperty(window, 'ResizeObserver', {
   }),
 });
 
-globalThis.__TEST_MOCK_DATA__ = { config: mockConfig };
+globalThis.__TEST_MOCK_DATA__ = mockData;
