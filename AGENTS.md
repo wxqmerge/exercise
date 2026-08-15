@@ -25,10 +25,10 @@ npm run lint           # ESLint on src/ only
 ## Architecture
 
 ### Config (Server Is Source of Truth)
-The client does NOT read config from env vars at build time. Instead, the server exposes `/api/config` (`{ dayMode, dayCount, days }`) and the client fetches it at runtime.
+The client does NOT read config from env vars at build time. Instead, the server exposes `/api/config` (`{ dayMode, dayCount, days, exerciseSwaps }`) and the client fetches it at runtime.
 - `DAY_MODE=odd-even` → `days: ["Odd", "Even"]`
 - `DAY_MODE=numbered` + `DAY_COUNT=3` → `days: ["Day 1", "Day 2", "Day 3"]`
-- Server reads only `server/.env` (never committed). `PUT /api/config` persists overrides to `data/config.json` (gitignored), which take precedence over the env values. The in-app Settings page (Settings button on the workout/summary screens) changes day mode / day count and lists all workouts.
+- Server reads only `server/.env` (never committed). `PUT /api/config` persists overrides to `data/config.json` (gitignored), which take precedence over the env values. The in-app Settings page (Settings button on the workout/summary screens) changes day mode / day count, swaps exercises, and lists all workouts.
 
 ### App Key (Optional)
 - `APP_KEY` in `server/.env` gates the entire API. If it is set, every `/api/*` request must carry a matching `X-App-Key` header (401 on mismatch). If it is empty/unset, the API is open and no key is required.
@@ -44,6 +44,12 @@ The default day is derived from the Julian date (day of year) in `src/utils/day.
 
 A Day pulldown (bottom row of the workout screen and the summary screen) overrides the auto day for the session (`selectedDay` in `App.jsx`; not persisted). Workout entries are stored per day in localStorage (`exercise-entries`: `{ [day]: { [exerciseId]: { reps, weights } } }`), saved on Next/Finish, cleared by "Start over".
 
+### Exercise Swaps (Permanent Replacements)
+`exerciseSwaps` in the config is `{ [day]: { [originalExerciseId]: replacementExerciseId } }` — a permanent, server-persisted replacement of one program exercise with another, per day.
+- Edited on the Settings page: each exercise row in "All workouts" has a "replace with" dropdown (any other program exercise, `—` for none); Save persists via `PUT /api/config`.
+- Applied client-side in `src/utils/swaps.js` (`applySwaps`): the workout screen, entries, images, and the `.tab` export all use the replacement exercise (keyed by its id). Unknown replacement ids fall back to the original.
+- Swaps are keyed by day name, so they only apply while that day exists in the current mode (e.g. an "Odd" swap is inert in numbered mode).
+
 ### Shared Types Compilation
 `server/package.json` build script runs 4 steps in order:
 1. `compile-shared.js` — copies TS to temp dir, compiles with tsc
@@ -54,7 +60,7 @@ A Day pulldown (bottom row of the workout screen and the summary screen) overrid
 ## API Quirks
 - All `/api/*` endpoints require the `X-App-Key` header matching `APP_KEY` when `APP_KEY` is set (401 on mismatch); when `APP_KEY` is empty the API is open
 - Only `/api/admin/ping` uses the `requireAdminKey` middleware (`X-API-Key`); all other write endpoints are gated by the app key alone
-- **`/api/config`**: GET returns `{ dayMode, dayCount, days }` — client should not hardcode the day list. PUT (`{ dayMode, dayCount }`, dayMode `odd-even`|`numbered`, dayCount 1–10) persists to `data/config.json`, overriding the env values.
+- **`/api/config`**: GET returns `{ dayMode, dayCount, days, exerciseSwaps }` — client should not hardcode the day list. PUT (`{ dayMode, dayCount, exerciseSwaps? }`, dayMode `odd-even`|`numbered`, dayCount 1–10, exerciseSwaps `{ [day]: { [exerciseId]: replacementId } }`) persists to `data/config.json`, overriding the env values. Omitting `exerciseSwaps` keeps the existing swaps.
 - **`/api/export` / `/api/import`**: Plain-JSON backup of all images (base64, no encryption).
 
 ## Dev Server Gotchas

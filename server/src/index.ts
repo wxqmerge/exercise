@@ -113,6 +113,14 @@ const readConfigFile = (): Record<string, unknown> => {
   }
 };
 
+const isSwapMap = (v: unknown): v is Record<string, Record<string, string>> => {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  return Object.values(v).every(daySwaps => {
+    if (!daySwaps || typeof daySwaps !== 'object' || Array.isArray(daySwaps)) return false;
+    return Object.values(daySwaps).every(id => typeof id === 'string');
+  });
+};
+
 const buildConfig = (overrides: Record<string, unknown>) => {
   const envMode = process.env.DAY_MODE === 'numbered' ? 'numbered' : 'odd-even';
   const dayMode = overrides.dayMode === 'numbered' || overrides.dayMode === 'odd-even'
@@ -126,7 +134,8 @@ const buildConfig = (overrides: Record<string, unknown>) => {
   const days = dayMode === 'numbered'
     ? Array.from({ length: dayCount }, (_, i) => `Day ${i + 1}`)
     : ['Odd', 'Even'];
-  return { dayMode, dayCount, days };
+  const exerciseSwaps = isSwapMap(overrides.exerciseSwaps) ? overrides.exerciseSwaps : {};
+  return { dayMode, dayCount, days, exerciseSwaps };
 };
 
 app.get('/api/config', (_req, res) => {
@@ -134,7 +143,7 @@ app.get('/api/config', (_req, res) => {
 });
 
 app.put('/api/config', (req, res) => {
-  const { dayMode, dayCount } = req.body || {};
+  const { dayMode, dayCount, exerciseSwaps } = req.body || {};
   if (dayMode !== 'odd-even' && dayMode !== 'numbered') {
     res.status(400).json({ success: false, error: { message: 'dayMode must be "odd-even" or "numbered"' } });
     return;
@@ -144,14 +153,24 @@ app.put('/api/config', (req, res) => {
     res.status(400).json({ success: false, error: { message: 'dayCount must be an integer between 1 and 10' } });
     return;
   }
+  let swaps: Record<string, Record<string, string>>;
+  if (exerciseSwaps === undefined) {
+    const existing = readConfigFile().exerciseSwaps;
+    swaps = isSwapMap(existing) ? existing : {};
+  } else if (isSwapMap(exerciseSwaps)) {
+    swaps = exerciseSwaps;
+  } else {
+    res.status(400).json({ success: false, error: { message: 'exerciseSwaps must be an object of day → { exerciseId: replacementId }' } });
+    return;
+  }
   try {
     fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ dayMode, dayCount: count }, null, 2));
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ dayMode, dayCount: count, exerciseSwaps: swaps }, null, 2));
   } catch {
     res.status(500).json({ success: false, error: { message: 'Could not save config' } });
     return;
   }
-  res.json(buildConfig({ dayMode, dayCount: count }));
+  res.json(buildConfig({ dayMode, dayCount: count, exerciseSwaps: swaps }));
 });
 
 app.get('/api/admin/ping', requireAdminKey, (_req, res) => {

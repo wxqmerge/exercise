@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useConfig } from './hooks/useConfig'
 import { useExerciseImages } from './hooks/useExerciseImages'
 import { getDayWorkout } from './data/exercises'
+import { applySwaps } from './utils/swaps'
 import { getDayForDate } from './utils/day'
 import { getApiKey, setApiKey, clearApiKey, getKeyFromUrl } from './utils/api'
 import Workout from './components/Workout'
@@ -69,7 +70,7 @@ function WorkoutApp({ onKeyCleared }) {
       days={config.days}
       dayMode={config.dayMode}
       onDayChange={setSelectedDay}
-      exercises={getDayWorkout(config.dayMode, day)}
+      exercises={applySwaps(getDayWorkout(config.dayMode, day), day, config.exerciseSwaps)}
       images={images}
       overrides={overrides}
       onSetImage={setOverride}

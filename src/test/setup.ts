@@ -1,7 +1,13 @@
 import '@testing-library/jest-dom/vitest';
 import { vi, beforeEach } from 'vitest';
 
-const DEFAULT_CONFIG = { dayMode: 'numbered', dayCount: 3, days: ['Day 1', 'Day 2', 'Day 3'] };
+const DEFAULT_CONFIG = { dayMode: 'numbered', dayCount: 3, days: ['Day 1', 'Day 2', 'Day 3'], exerciseSwaps: {} };
+
+const isSwapMap = (v) =>
+  !!v && typeof v === 'object' && !Array.isArray(v) &&
+  Object.values(v).every(d =>
+    !!d && typeof d === 'object' && !Array.isArray(d) &&
+    Object.values(d).every(x => typeof x === 'string'));
 
 const mockData = {
   config: { ...DEFAULT_CONFIG },
@@ -116,12 +122,23 @@ const createFetchMock = () => {
           json: () => Promise.resolve({ success: false, error: { message: 'dayCount must be an integer between 1 and 10' } }),
         });
       }
+      if (body.exerciseSwaps !== undefined && !isSwapMap(body.exerciseSwaps)) {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ success: false, error: { message: 'exerciseSwaps must be an object of day → { exerciseId: replacementId }' } }),
+        });
+      }
+      const swaps = body.exerciseSwaps !== undefined
+        ? body.exerciseSwaps
+        : (isSwapMap(mockData.config.exerciseSwaps) ? mockData.config.exerciseSwaps : {});
       mockData.config = {
         dayMode: body.dayMode,
         dayCount: count,
         days: body.dayMode === 'numbered'
           ? Array.from({ length: count }, (_, i) => `Day ${i + 1}`)
           : ['Odd', 'Even'],
+        exerciseSwaps: swaps,
       };
       return Promise.resolve({
         ok: true,

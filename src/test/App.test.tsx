@@ -238,6 +238,22 @@ describe('App', () => {
     expect(await screen.findByText(`${otherDay} · Exercise 1 of ${otherWorkout.length}`)).toBeInTheDocument();
   });
 
+  it('shows the replacement exercise when a swap is configured', async () => {
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const [original, replacement] = workout;
+    globalThis.__TEST_MOCK_DATA__.config = {
+      dayMode: 'numbered',
+      dayCount: 3,
+      days: CONFIG.days,
+      exerciseSwaps: { [day]: { [original.id]: replacement.id } },
+    };
+    render(<App />);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    expect(screen.getByText(replacement.name)).toBeInTheDocument();
+    expect(screen.queryByText(original.name)).not.toBeInTheDocument();
+  });
+
   it('keeps each day\'s entries separate', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
@@ -325,8 +341,8 @@ describe('App', () => {
       expect(screen.getByText(/Day 1/)).toBeInTheDocument();
       expect(screen.getByText(/Day 2/)).toBeInTheDocument();
       expect(screen.getByText(/Day 3/)).toBeInTheDocument();
-      expect(screen.getByText('Goblet Squat')).toBeInTheDocument();
-      expect(screen.getByText('Weighted Marching')).toBeInTheDocument();
+      expect(screen.getAllByText('Goblet Squat').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Weighted Marching').length).toBeGreaterThan(0);
     });
 
     it('shows 0/0/0/0/0/0 for exercises with no saved entry', async () => {
@@ -380,6 +396,19 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
       await screen.findByText('All workouts');
       expect(screen.getByText('50/10/45/12/40/15')).toBeInTheDocument();
+    });
+
+    it('saves an exercise replacement and applies it to the workout screen', async () => {
+      await openSettings();
+      fireEvent.change(screen.getByLabelText('Replace Goblet Squat on Day 1'), { target: { value: 'weighted-marching' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText('Saved')).toBeInTheDocument();
+      expect(globalThis.__TEST_MOCK_DATA__.config.exerciseSwaps).toEqual({ 'Day 1': { 'goblet-squat': 'weighted-marching' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      fireEvent.change(screen.getByLabelText('Day'), { target: { value: 'Day 1' } });
+      expect(await screen.findByText('Day 1 · Exercise 1 of 5')).toBeInTheDocument();
+      expect(screen.getByText('Weighted Marching')).toBeInTheDocument();
+      expect(screen.queryByText('Goblet Squat')).not.toBeInTheDocument();
     });
 
     it('saves the day mode and applies it to the workout screen', async () => {

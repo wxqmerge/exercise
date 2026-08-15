@@ -2,6 +2,7 @@ export interface AppConfig {
   dayMode: 'odd-even' | 'numbered';
   dayCount: number;
   days: string[];
+  exerciseSwaps: Record<string, Record<string, string>>;
 }
 
 export interface Exercise {

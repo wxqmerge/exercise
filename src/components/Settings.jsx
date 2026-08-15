@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { apiFetch } from '../utils/api'
 import { findEntry } from '../utils/entries'
+import { programExercises } from '../utils/swaps'
 import { ODD_EVEN_WORKOUTS, NUMBERED_WORKOUTS } from '../data/exercises'
 
 const DAY_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -24,6 +25,7 @@ const workoutsFor = (mode, count) => {
 export default function Settings({ config, onSaved, onBack }) {
   const [mode, setMode] = useState(config.dayMode)
   const [count, setCount] = useState(config.dayCount || 3)
+  const [swaps, setSwaps] = useState(config.exerciseSwaps || {})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
@@ -39,7 +41,7 @@ export default function Settings({ config, onSaved, onBack }) {
       const res = await apiFetch('/api/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dayMode: mode, dayCount: count }),
+        body: JSON.stringify({ dayMode: mode, dayCount: count, exerciseSwaps: swaps }),
       })
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
@@ -113,6 +115,9 @@ export default function Settings({ config, onSaved, onBack }) {
 
         <div className="px-6 py-4">
           <h2 className="text-sm font-semibold text-gray-700">All workouts</h2>
+          <p className="mt-1 text-xs text-gray-400">
+            Pick a replacement to permanently swap an exercise on that day, then press Save.
+          </p>
           <div className="mt-2 space-y-4">
             {workouts.map(({ day, exercises }) => {
               return (
@@ -123,14 +128,40 @@ export default function Settings({ config, onSaved, onBack }) {
                   {exercises.length > 0 ? (
                     <ul className="mt-1 space-y-1">
                       {exercises.map(ex => {
-                        const entry = findEntry(day, ex.id)
+                        const repId = swaps[day]?.[ex.id] || ''
+                        const entry = findEntry(day, repId || ex.id)
                         return (
                           <li
                             key={ex.id}
-                            className="flex items-baseline justify-between gap-2 text-sm"
+                            className="flex items-center gap-2 text-sm flex-wrap"
                           >
                           <span className="text-gray-600">{ex.name}</span>
-                          <span className="text-gray-400 tabular-nums whitespace-nowrap">
+                          <select
+                            value={repId}
+                            onChange={e => {
+                              const value = e.target.value
+                              setSwaps(prev => {
+                                const daySwaps = { ...(prev[day] || {}) }
+                                if (value) daySwaps[ex.id] = value
+                                else delete daySwaps[ex.id]
+                                const next = { ...prev }
+                                if (Object.keys(daySwaps).length > 0) next[day] = daySwaps
+                                else delete next[day]
+                                return next
+                              })
+                              setSaved(false)
+                            }}
+                            aria-label={`Replace ${ex.name} on ${day}`}
+                            className="text-xs border border-gray-200 rounded px-1 py-0.5 bg-white text-gray-500"
+                          >
+                            <option value="">—</option>
+                            {programExercises().filter(o => o.id !== ex.id).map(o => (
+                              <option key={o.id} value={o.id}>
+                                {o.name}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="ml-auto text-gray-400 tabular-nums whitespace-nowrap">
                             {formatEntry(entry)}
                           </span>
                           </li>
