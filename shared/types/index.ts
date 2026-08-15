@@ -11,6 +11,6 @@ export interface Exercise {
 }
 
 export interface SetEntry {
-  reps: string;
+  reps: string[];
   weight: string;
 }

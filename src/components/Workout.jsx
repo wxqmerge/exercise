@@ -17,7 +17,7 @@ const isImageUrl = (url) => {
 export default function Workout({ day, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages }) {
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState({})
-  const [reps, setReps] = useState('')
+  const [reps, setReps] = useState(['10', '10', '10'])
   const [weight, setWeight] = useState('')
   const [urlDraft, setUrlDraft] = useState('')
   const [imageError, setImageError] = useState(false)
@@ -30,8 +30,8 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
 
   const saveAndNext = () => {
     const exercise = exercises[index]
-    setEntries(prev => ({ ...prev, [exercise.id]: { reps, weight } }))
-    setReps('')
+    setEntries(prev => ({ ...prev, [exercise.id]: { reps: [...reps], weight } }))
+    setReps(['10', '10', '10'])
     setWeight('')
     setUrlDraft('')
     setImageError(false)
@@ -45,7 +45,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
     const prev = exercises[index - 1]
     const saved = entries[prev.id]
     if (saved) {
-      setReps(saved.reps)
+      setReps([...saved.reps])
       setWeight(saved.weight)
     }
     setUrlDraft('')
@@ -57,7 +57,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
 
   const restart = () => {
     setEntries({})
-    setReps('')
+    setReps(['10', '10', '10'])
     setWeight('')
     setUrlDraft('')
     setImageError(false)
@@ -79,7 +79,9 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
 
   if (finished) {
     const totalVolume = Object.values(entries).reduce(
-      (sum, e) => sum + (Number(e.reps) || 0) * (Number(e.weight) || 0),
+      (sum, e) =>
+        sum +
+        e.reps.reduce((s, r) => s + (Number(r) || 0), 0) * (Number(e.weight) || 0),
       0,
     )
     return (
@@ -101,7 +103,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
                 return (
                   <tr key={ex.id} className="border-b last:border-0">
                     <td className="py-2">{ex.name}</td>
-                    <td className="py-2 text-right">{e?.reps || '—'}</td>
+                    <td className="py-2 text-right">{e?.reps ? e.reps.join(' / ') : '—'}</td>
                     <td className="py-2 text-right">{e?.weight || '—'}</td>
                   </tr>
                 )
@@ -234,18 +236,26 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
         {imageHint && <p className="px-4 pb-2 text-xs text-red-500">{imageHint}</p>}
 
         <div className="px-6 pb-2 grid grid-cols-2 gap-4">
-          <label className="block">
+          <div>
             <span className="text-sm text-gray-600">Reps</span>
-            <input
-              type="number"
-              min="0"
-              inputMode="numeric"
-              value={reps}
-              onChange={e => setReps(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded px-3 py-2"
-              placeholder="0"
-            />
-          </label>
+            <div className="mt-1 space-y-2">
+              {reps.map((r, i) => (
+                <label key={i} className="flex items-center gap-2">
+                  <span className="w-10 shrink-0 text-sm text-gray-500">Set {i + 1}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    value={r}
+                    onChange={e => setReps(prev => prev.map((p, j) => (j === i ? e.target.value : p)))}
+                    aria-label={`Set ${i + 1} reps`}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="0"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
           <label className="block">
             <span className="text-sm text-gray-600">Weight</span>
             <input

@@ -124,7 +124,7 @@ describe('App', () => {
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
     const workout = getDayWorkout(CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
-    fireEvent.change(screen.getByLabelText('Reps'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Set 1 reps'), { target: { value: '10' } });
     fireEvent.change(screen.getByLabelText('Weight'), { target: { value: '50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByText(`${day} · Exercise 2 of ${workout.length}`)).toBeInTheDocument();
@@ -136,12 +136,11 @@ describe('App', () => {
     const workout = getDayWorkout(CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     for (let i = 0; i < workout.length; i++) {
-      fireEvent.change(screen.getByLabelText('Reps'), { target: { value: '10' } });
       fireEvent.change(screen.getByLabelText('Weight'), { target: { value: '50' } });
       fireEvent.click(screen.getByRole('button', { name: i === workout.length - 1 ? 'Finish' : 'Next' }));
     }
     expect(screen.getByText('Workout complete')).toBeInTheDocument();
-    expect(screen.getAllByText('10').length).toBe(workout.length);
-    expect(screen.getByText(`Total volume: ${workout.length * 500}`)).toBeInTheDocument();
+    expect(screen.getAllByText('10 / 10 / 10').length).toBe(workout.length);
+    expect(screen.getByText(`Total volume: ${workout.length * 1500}`)).toBeInTheDocument();
   });
 });
