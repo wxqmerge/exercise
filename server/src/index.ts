@@ -6,6 +6,7 @@ import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import fs from 'fs';
 import path from 'path';
 import http from 'http';
 
@@ -100,6 +101,24 @@ app.get('/api/config', (_req, res) => {
 app.get('/api/admin/ping', requireAdminKey, (_req, res) => {
   res.json({ success: true, message: 'admin auth ok' });
 });
+
+const IMAGE_DIR = path.join(__dirname, '../../data/images');
+if (!fs.existsSync(IMAGE_DIR)) {
+  fs.mkdirSync(IMAGE_DIR, { recursive: true });
+}
+
+app.get('/api/images', (_req, res) => {
+  const images: Record<string, string> = {};
+  for (const file of fs.readdirSync(IMAGE_DIR)) {
+    const dot = file.lastIndexOf('.');
+    if (dot <= 0) continue;
+    const id = file.substring(0, dot);
+    images[id] = `/api/images/${encodeURIComponent(file)}`;
+  }
+  res.json(images);
+});
+
+app.use('/api/images', express.static(IMAGE_DIR));
 
 if (isDev) {
   app.use((_req, _res, next) => {

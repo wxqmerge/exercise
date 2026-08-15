@@ -5,6 +5,7 @@ const DEFAULT_CONFIG = { dayMode: 'numbered', days: ['Day 1', 'Day 2', 'Day 3'] 
 
 const mockData = {
   config: { ...DEFAULT_CONFIG },
+  images: {},
 };
 
 const createFetchMock = () => {
@@ -13,6 +14,12 @@ const createFetchMock = () => {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve(mockData.config),
+      });
+    }
+    if (typeof url === 'string' && url === '/api/images') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockData.images),
       });
     }
     if (options?.method === 'PUT' || options?.method === 'DELETE' || options?.method === 'POST') {
@@ -34,6 +41,8 @@ globalThis.fetch = createFetchMock();
 beforeEach(() => {
   globalThis.fetch = createFetchMock();
   mockData.config = { ...DEFAULT_CONFIG };
+  mockData.images = {};
+  localStorage.clear();
 });
 
 Object.defineProperty(window, 'location', {

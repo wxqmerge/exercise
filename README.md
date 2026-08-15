@@ -35,6 +35,11 @@ Copy `.env` values from your environment (never committed). Server reads root `.
 
 ## How it works
 1. The day is picked automatically from the Julian date (day of year): `Day 1/2/3` cycles, with days divisible by 3 → Day 3 (odd/even mode uses day parity)
-2. Each exercise shows an image, or a "No image — click to search" link (Google image search)
+2. Each exercise shows its image, or a "No image — click to search" link (Google image search)
+
+### Adding an exercise image
+Two ways:
+1. **Paste a link in the app** — on an exercise without an image, paste the image URL into the text box and hit Save. Stored in your browser (localStorage).
+2. **Drop a file** — save any image (jpg/png/gif) into `data/images/` named after the exercise id from `src/data/exercises.js` (e.g. `data/images/squat.jpg`). Reload the app — it appears automatically.
 3. Enter reps and weight, click **Next** (or **Finish** on the last one)
 4. Summary screen lists all exercises with reps/weight and total volume

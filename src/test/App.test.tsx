@@ -14,6 +14,16 @@ describe('App', () => {
     expect(await screen.findByText(`${day} · Exercise 1 of ${workout.length}`)).toBeInTheDocument();
   });
 
+  it('shows the image when one is available for the exercise', async () => {
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    globalThis.__TEST_MOCK_DATA__.images = { [workout[0].id]: '/api/images/test.jpg' };
+    render(<App />);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    const img = screen.getByAltText(workout[0].name);
+    expect(img).toHaveAttribute('src', '/api/images/test.jpg');
+  });
+
   it('offers an image search when the exercise has no image', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
@@ -22,6 +32,19 @@ describe('App', () => {
     const link = screen.getByRole('link', { name: /no image/i });
     expect(link).toHaveAttribute('href', expect.stringContaining('tbm=isch'));
     expect(link).toHaveAttribute('href', expect.stringContaining(encodeURIComponent(workout[0].name)));
+  });
+
+  it('saves a pasted image URL and shows the image', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Image URL'), {
+      target: { value: 'https://example.com/squat.jpg' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const img = await screen.findByAltText(workout[0].name);
+    expect(img).toHaveAttribute('src', 'https://example.com/squat.jpg');
   });
 
   it('moves to the next exercise when Next is clicked', async () => {

@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useConfig } from './hooks/useConfig'
+import { useExerciseImages } from './hooks/useExerciseImages'
 import { getDayWorkout } from './data/exercises'
 import { getDayForDate } from './utils/day'
 import Workout from './components/Workout'
 
 export default function App() {
   const { config, error } = useConfig()
+  const { images, setOverride } = useExerciseImages()
   const [today] = useState(() => new Date())
 
   if (error) {
@@ -29,5 +31,12 @@ export default function App() {
 
   const day = getDayForDate(today, config.dayMode, config.days)
 
-  return <Workout day={day} exercises={getDayWorkout(config.dayMode, day)} />
+  return (
+    <Workout
+      day={day}
+      exercises={getDayWorkout(config.dayMode, day)}
+      images={images}
+      onSetImage={setOverride}
+    />
+  )
 }

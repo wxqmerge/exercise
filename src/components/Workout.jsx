@@ -3,11 +3,12 @@ import { useState } from 'react'
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise`)}`
 
-export default function Workout({ day, exercises }) {
+export default function Workout({ day, exercises, images = {}, onSetImage }) {
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState({})
   const [reps, setReps] = useState('')
   const [weight, setWeight] = useState('')
+  const [urlDraft, setUrlDraft] = useState('')
 
   const isLast = index === exercises.length - 1
   const finished = index >= exercises.length
@@ -17,6 +18,7 @@ export default function Workout({ day, exercises }) {
     setEntries(prev => ({ ...prev, [exercise.id]: { reps, weight } }))
     setReps('')
     setWeight('')
+    setUrlDraft('')
     setIndex(i => i + 1)
   }
 
@@ -28,6 +30,7 @@ export default function Workout({ day, exercises }) {
       setReps(saved.reps)
       setWeight(saved.weight)
     }
+    setUrlDraft('')
     setIndex(i => i - 1)
   }
 
@@ -35,6 +38,7 @@ export default function Workout({ day, exercises }) {
     setEntries({})
     setReps('')
     setWeight('')
+    setUrlDraft('')
     setIndex(0)
   }
 
@@ -94,6 +98,14 @@ export default function Workout({ day, exercises }) {
 
   const exercise = exercises[index]
 
+  const saveImage = () => {
+    const trimmed = urlDraft.trim()
+    if (trimmed && onSetImage) {
+      onSetImage(exercise.id, trimmed)
+      setUrlDraft('')
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#f5f5f0] flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow p-8 max-w-md w-full">
@@ -102,22 +114,39 @@ export default function Workout({ day, exercises }) {
         </p>
         <h1 className="mt-1 text-2xl font-bold text-primary">{exercise.name}</h1>
 
-        {exercise.image ? (
+        {images[exercise.id] ? (
           <img
-            src={exercise.image}
+            src={images[exercise.id]}
             alt={exercise.name}
             className="mt-4 w-full h-48 object-cover rounded"
           />
         ) : (
-          <a
-            href={imageSearchUrl(exercise.name)}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-4 flex flex-col items-center justify-center h-48 rounded border-2 border-dashed border-gray-300 text-gray-500 hover:border-primary hover:text-primary"
-          >
-            <span className="font-semibold">No image</span>
-            <span className="text-sm">Click to search</span>
-          </a>
+          <div className="mt-4 rounded border-2 border-dashed border-gray-300 p-4 text-center">
+            <a
+              href={imageSearchUrl(exercise.name)}
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-gray-500 hover:text-primary"
+            >
+              No image — click to search
+            </a>
+            <div className="mt-3 flex gap-2">
+              <input
+                value={urlDraft}
+                onChange={e => setUrlDraft(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveImage()}
+                placeholder="Paste image URL…"
+                aria-label="Image URL"
+                className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+              />
+              <button
+                onClick={saveImage}
+                className="px-3 py-2 bg-primary text-white rounded text-sm font-semibold hover:opacity-90"
+              >
+                Save
+              </button>
+            </div>
+          </div>
         )}
 
         <div className="mt-6 grid grid-cols-2 gap-4">

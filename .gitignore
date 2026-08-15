@@ -42,5 +42,11 @@ shared/types/*.d.ts.map
 # Python cache
 __pycache__/
 
+# Local data (images are user-picked, never committed)
+data/*
+!data/images/
+data/images/*
+!data/images/.gitkeep
+
 # Temp
 tmp/
