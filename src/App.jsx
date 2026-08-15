@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useConfig } from './hooks/useConfig'
 import { useExerciseImages } from './hooks/useExerciseImages'
-import { getDayWorkout } from './data/exercises'
+import { PROGRAMS, DEFAULT_TYPE, getDayWorkout } from './data/exercises'
 import { applySwaps } from './utils/swaps'
 import { getDayForDate } from './utils/day'
-import { getApiKey, setApiKey, clearApiKey, getKeyFromUrl } from './utils/api'
+import { apiFetch, getApiKey, setApiKey, clearApiKey, getKeyFromUrl } from './utils/api'
 import Workout from './components/Workout'
 import Settings from './components/Settings'
 import KeyGate from './components/KeyGate'
@@ -14,6 +14,7 @@ function WorkoutApp({ onKeyCleared }) {
   const { images, overrides, setOverride, removeOverride, refetch } = useExerciseImages()
   const [today] = useState(() => new Date())
   const [selectedDay, setSelectedDay] = useState(null)
+  const [selectedType, setSelectedType] = useState(null)
   const [view, setView] = useState('workout')
 
   const changeKey = () => {
@@ -52,11 +53,29 @@ function WorkoutApp({ onKeyCleared }) {
     ? selectedDay
     : getDayForDate(today, config.dayMode, config.days)
 
+  const type = selectedType && PROGRAMS[selectedType]
+    ? selectedType
+    : config.workoutType && PROGRAMS[config.workoutType]
+      ? config.workoutType
+      : DEFAULT_TYPE
+
+  const changeType = (newType) => {
+    if (!PROGRAMS[newType]) return
+    setSelectedType(newType)
+    apiFetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workoutType: newType }),
+    }).catch(() => {})
+  }
+
   if (view === 'settings') {
     return (
       <Settings
         config={config}
-        workoutName={config.workoutName}
+        workoutType={type}
+        workoutTypes={Object.entries(PROGRAMS).map(([id, p]) => ({ id, name: p.name }))}
+        onTypeChange={changeType}
         onSaved={data => {
           if (data?.days) refresh()
         }}
@@ -70,9 +89,11 @@ function WorkoutApp({ onKeyCleared }) {
       day={day}
       days={config.days}
       dayMode={config.dayMode}
-      workoutName={config.workoutName}
+      workoutType={type}
+      workoutTypes={Object.entries(PROGRAMS).map(([id, p]) => ({ id, name: p.name }))}
+      onTypeChange={changeType}
       onDayChange={setSelectedDay}
-      exercises={applySwaps(getDayWorkout(config.dayMode, day), day, config.exerciseSwaps)}
+      exercises={applySwaps(getDayWorkout(type, config.dayMode, day), day, config.exerciseSwaps, type)}
       images={images}
       overrides={overrides}
       onSetImage={setOverride}

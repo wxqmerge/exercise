@@ -3,7 +3,7 @@ export interface AppConfig {
   dayCount: number;
   days: string[];
   exerciseSwaps: Record<string, Record<string, string>>;
-  workoutName: string;
+  workoutType: string;
 }
 
 export interface Exercise {

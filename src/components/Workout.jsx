@@ -20,9 +20,10 @@ const isImageUrl = (url) => {
   }
 }
 
-export default function Workout({ day, days = [], dayMode = 'numbered', workoutName = '', onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
+export default function Workout({ day, days = [], dayMode = 'numbered', workoutType = '', workoutTypes = [], onTypeChange, onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
+  const workoutName = workoutTypes.find(t => t.id === workoutType)?.name || workoutType
   const [index, setIndex] = useState(0)
-  const [entries, setEntries] = useState(() => loadDayEntries(day))
+  const [entries, setEntries] = useState(() => loadDayEntries(workoutType, day))
   const [reps, setReps] = useState(['10', '10', '10'])
   const [weights, setWeights] = useState(['', '', ''])
   const [urlDraft, setUrlDraft] = useState('')
@@ -40,7 +41,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutN
     const exercise = exercises[index]
     const nextEntries = { ...entries, [exercise.id]: { reps: [...reps], weights: [...weights] } }
     setEntries(nextEntries)
-    persistDayEntries(day, nextEntries)
+    persistDayEntries(workoutType, day, nextEntries)
     setReps(['10', '10', '10'])
     setWeights(['', '', ''])
     setUrlDraft('')
@@ -55,7 +56,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutN
 
   const changeDay = (newDay) => {
     if (newDay === day || !onDayChange) return
-    setEntries(loadDayEntries(newDay))
+    setEntries(loadDayEntries(workoutType, newDay))
     setReps(['10', '10', '10'])
     setWeights(['', '', ''])
     setUrlDraft('')
@@ -64,6 +65,19 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutN
     setZoomed(false)
     setIndex(0)
     onDayChange(newDay)
+  }
+
+  const changeType = (newType) => {
+    if (newType === workoutType || !onTypeChange) return
+    setEntries(loadDayEntries(newType, day))
+    setReps(['10', '10', '10'])
+    setWeights(['', '', ''])
+    setUrlDraft('')
+    setImageError(false)
+    setImageHint('')
+    setZoomed(false)
+    setIndex(0)
+    onTypeChange(newType)
   }
 
   const goBack = () => {
@@ -83,7 +97,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutN
 
   const restart = () => {
     setEntries({})
-    clearDayEntries(day)
+    clearDayEntries(workoutType, day)
     setReps(['10', '10', '10'])
     setWeights(['', '', ''])
     setUrlDraft('')
@@ -102,6 +116,19 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutN
     >
       {days.map(d => (
         <option key={d} value={d}>{d}</option>
+      ))}
+    </select>
+  )
+
+  const typeSelect = (
+    <select
+      value={workoutType}
+      onChange={e => changeType(e.target.value)}
+      aria-label="Workout type"
+      className="border border-gray-300 rounded px-2 py-1 text-xs bg-white text-gray-700"
+    >
+      {workoutTypes.map(t => (
+        <option key={t.id} value={t.id}>{t.name}</option>
       ))}
     </select>
   )
@@ -153,6 +180,10 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutN
           </table>
             <p className="mt-4 text-right font-semibold">Total volume: {totalVolume}</p>
             <div className="mt-4 flex items-center justify-center gap-2">
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                Workout
+                {typeSelect}
+              </span>
               <span className="text-xs text-gray-400 flex items-center gap-1">
                 Day
                 {daySelect}
@@ -268,8 +299,8 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutN
     const all = loadAllEntries()
     const lines = [['Day', 'Exercise', 'Set 1', 'Set 2', 'Set 3']]
     for (const d of days) {
-      const dayEntries = all[d] || {}
-      for (const ex of getDayWorkout(dayMode, d)) {
+      const dayEntries = all[workoutType]?.[d] || {}
+      for (const ex of getDayWorkout(workoutType, dayMode, d)) {
         const e = dayEntries[ex.id]
         lines.push([
           d,
@@ -531,6 +562,10 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutN
         </div>
 
         <div className="px-6 pb-6 flex items-center gap-2 flex-wrap">
+          <label className="text-xs text-gray-400 flex items-center gap-1">
+            Workout
+            {typeSelect}
+          </label>
           <label className="text-xs text-gray-400 flex items-center gap-1">
             Day
             {daySelect}

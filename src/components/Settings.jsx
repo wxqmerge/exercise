@@ -2,27 +2,28 @@ import { useState } from 'react'
 import { apiFetch } from '../utils/api'
 import { findEntry } from '../utils/entries'
 import { programExercises } from '../utils/swaps'
-import { ODD_EVEN_WORKOUTS, NUMBERED_WORKOUTS } from '../data/exercises'
+import { getProgram } from '../data/exercises'
 
 const DAY_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 const formatEntry = (entry) =>
   (entry?.reps || [0, 0, 0]).map((r, i) => `${entry?.weights?.[i] || 0}/${r || 0}`).join('/')
 
-const workoutsFor = (mode, count) => {
+const workoutsFor = (typeId, mode, count) => {
+  const program = getProgram(typeId)
   if (mode === 'numbered') {
     return Array.from({ length: count }, (_, i) => ({
       day: `Day ${i + 1}`,
-      exercises: NUMBERED_WORKOUTS[i + 1] || [],
+      exercises: program.NUMBERED_WORKOUTS[i + 1] || [],
     }))
   }
   return ['Odd', 'Even'].map(day => ({
     day,
-    exercises: ODD_EVEN_WORKOUTS[day] || [],
+    exercises: program.ODD_EVEN_WORKOUTS[day] || [],
   }))
 }
 
-export default function Settings({ config, workoutName = '', onSaved, onBack }) {
+export default function Settings({ config, workoutType = '', workoutTypes = [], onTypeChange, onSaved, onBack }) {
   const [mode, setMode] = useState(config.dayMode)
   const [count, setCount] = useState(config.dayCount || 3)
   const [swaps, setSwaps] = useState(config.exerciseSwaps || {})
@@ -30,7 +31,8 @@ export default function Settings({ config, workoutName = '', onSaved, onBack }) 
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const workouts = workoutsFor(mode, count)
+  const workoutName = workoutTypes.find(t => t.id === workoutType)?.name || workoutType
+  const workouts = workoutsFor(workoutType, mode, count)
 
   const save = async () => {
     if (saving) return
@@ -72,6 +74,16 @@ export default function Settings({ config, workoutName = '', onSaved, onBack }) 
         <div className="px-6 py-4 border-b">
           <h2 className="text-sm font-semibold text-gray-700">Workout days</h2>
           <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <select
+              value={workoutType}
+              onChange={e => onTypeChange(e.target.value)}
+              aria-label="Workout type"
+              className="border border-gray-300 rounded px-2 py-1 text-sm bg-white text-gray-700"
+            >
+              {workoutTypes.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
             <select
               value={mode}
               onChange={e => {
@@ -132,7 +144,7 @@ export default function Settings({ config, workoutName = '', onSaved, onBack }) 
                     <ul className="mt-1 space-y-1">
                       {exercises.map(ex => {
                         const repId = swaps[day]?.[ex.id] || ''
-                        const entry = findEntry(day, repId || ex.id)
+                          const entry = findEntry(workoutType, day, repId || ex.id)
                         return (
                           <li
                             key={ex.id}
@@ -158,7 +170,7 @@ export default function Settings({ config, workoutName = '', onSaved, onBack }) 
                             className="text-xs border border-gray-200 rounded px-1 py-0.5 bg-white text-gray-500"
                           >
                             <option value="">—</option>
-                            {programExercises().filter(o => o.id !== ex.id).map(o => (
+                            {programExercises(workoutType).filter(o => o.id !== ex.id).map(o => (
                               <option key={o.id} value={o.id}>
                                 {o.name}
                               </option>

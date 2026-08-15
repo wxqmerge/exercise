@@ -20,7 +20,7 @@ describe('App', () => {
     localStorage.removeItem('exercise-key');
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     expect(await screen.findByText(`${day} · Exercise 1 of ${workout.length}`)).toBeInTheDocument();
     expect(localStorage.getItem('exercise-key')).toBe('my-url-key');
     window.location = prevLocation;
@@ -31,7 +31,7 @@ describe('App', () => {
     localStorage.removeItem('exercise-key');
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     expect(await screen.findByText(`${day} · Exercise 1 of ${workout.length}`)).toBeInTheDocument();
     expect(screen.queryByText(/enter your key to continue/i)).not.toBeInTheDocument();
   });
@@ -43,7 +43,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'my-key' } });
     fireEvent.click(screen.getByRole('button', { name: 'Unlock' }));
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     expect(await screen.findByText(`${day} · Exercise 1 of ${workout.length}`)).toBeInTheDocument();
   });
 
@@ -58,13 +58,13 @@ describe('App', () => {
   it('starts directly on the workout for the current Julian day', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     expect(await screen.findByText(`${day} · Exercise 1 of ${workout.length}`)).toBeInTheDocument();
   });
 
   it('shows the image when one is available for the exercise', async () => {
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     globalThis.__TEST_MOCK_DATA__.images = { [workout[0].id]: '/api/images/test.jpg' };
     render(<App />);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
@@ -75,7 +75,7 @@ describe('App', () => {
   it('shows the exercise description when present', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     expect(screen.getByText(workout[0].description)).toBeInTheDocument();
   });
@@ -83,7 +83,7 @@ describe('App', () => {
   it('offers an image search when the exercise has no image', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     const link = screen.getByRole('link', { name: /no image/i });
     expect(link).toHaveAttribute('href', expect.stringContaining('tbm=isch'));
@@ -95,7 +95,7 @@ describe('App', () => {
   it('rejects a link without an image extension', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Image URL'), {
       target: { value: 'https://example.com/page.html' },
@@ -108,7 +108,7 @@ describe('App', () => {
   it('removes a saved image', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Image URL'), {
       target: { value: 'https://example.com/a.gif' },
@@ -121,7 +121,7 @@ describe('App', () => {
 
   it('falls back to the paste box when the image fails to load', async () => {
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     globalThis.__TEST_MOCK_DATA__.images = { [workout[0].id]: 'https://example.com/broken.jpg' };
     render(<App />);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
@@ -133,7 +133,7 @@ describe('App', () => {
   it('downloads and saves the image to the app', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Image URL'), {
       target: { value: 'https://example.com/squat.jpg' },
@@ -146,7 +146,7 @@ describe('App', () => {
   it('imports a local image file', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     const file = new File(['fakeimagebytes'], 'photo.jpg', { type: 'image/jpeg' });
     fireEvent.change(screen.getByLabelText('Import image'), { target: { files: [file] } });
@@ -158,7 +158,7 @@ describe('App', () => {
     globalThis.__TEST_MOCK_DATA__.imagesSaveResult = { ok: false };
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Image URL'), {
       target: { value: 'https://example.com/squat.jpg' },
@@ -170,7 +170,7 @@ describe('App', () => {
 
   it('zooms the image to full screen on click', async () => {
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     globalThis.__TEST_MOCK_DATA__.images = { [workout[0].id]: '/api/images/test.jpg' };
     render(<App />);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
@@ -183,7 +183,7 @@ describe('App', () => {
   it('moves to the next exercise when Next is clicked', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Set 1 reps'), { target: { value: '10' } });
     fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
@@ -194,27 +194,56 @@ describe('App', () => {
   it('shows the workout type name on the workout screen', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
-    expect(screen.getByText('Dumbbells')).toBeInTheDocument();
+    expect(screen.getAllByText('Dumbbells').length).toBeGreaterThan(0);
   });
 
   it('shows the workout type name on the summary screen', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     for (let i = 0; i < workout.length; i++) {
       fireEvent.click(screen.getByRole('button', { name: i === workout.length - 1 ? 'Finish' : 'Next' }));
     }
     expect(screen.getByText('Workout complete')).toBeInTheDocument();
-    expect(screen.getByText('Dumbbells')).toBeInTheDocument();
+    expect(screen.getAllByText('Dumbbells').length).toBeGreaterThan(0);
+  });
+
+  it('switches workout type with the Workout pulldown', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
+    const hotelWorkout = getDayWorkout('hotel', CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Workout type'), { target: { value: 'hotel' } });
+    expect(await screen.findByText(`${day} · Exercise 1 of ${hotelWorkout.length}`)).toBeInTheDocument();
+    expect(screen.getByText(hotelWorkout[0].name)).toBeInTheDocument();
+    expect(globalThis.__TEST_MOCK_DATA__.config.workoutType).toBe('hotel');
+  });
+
+  it('keeps entries separate per workout type', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
+    const hotelWorkout = getDayWorkout('hotel', CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByLabelText('Workout type'), { target: { value: 'hotel' } });
+    await screen.findByText(`${day} · Exercise 1 of ${hotelWorkout.length}`);
+    fireEvent.change(screen.getByLabelText('Workout type'), { target: { value: 'dumbbells' } });
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    const stored = JSON.parse(localStorage.getItem('exercise-entries'));
+    expect(stored['dumbbells'][day][workout[0].id].weights[0]).toBe('50');
+    expect(stored['hotel']).toBeUndefined();
   });
 
   it('fills the entered weight into the other empty sets', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
     expect(screen.getByLabelText('Set 2 weight')).toHaveValue(50);
@@ -226,7 +255,7 @@ describe('App', () => {
   it('adjusts every set with the reps and weight buttons', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.click(screen.getAllByRole('button', { name: 'Increase all weights' })[0]);
     expect(screen.getByLabelText('Set 1 weight')).toHaveValue(5);
@@ -245,7 +274,7 @@ describe('App', () => {
   it('exports a backup file', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
     expect((globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.some(c => c[0] === '/api/export')).toBe(true);
@@ -270,7 +299,7 @@ describe('App', () => {
   it('goes back to the previous exercise with the left arrow', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByText(`${day} · Exercise 2 of ${workout.length}`)).toBeInTheDocument();
@@ -281,17 +310,17 @@ describe('App', () => {
   it('switches the workout day with the Day pulldown', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     const otherDay = CONFIG.days.find(d => d !== day);
-    const otherWorkout = getDayWorkout(CONFIG.dayMode, otherDay);
+    const otherWorkout = getDayWorkout('dumbbells', CONFIG.dayMode, otherDay);
     fireEvent.change(screen.getByLabelText('Day'), { target: { value: otherDay } });
     expect(await screen.findByText(`${otherDay} · Exercise 1 of ${otherWorkout.length}`)).toBeInTheDocument();
   });
 
   it('shows the replacement exercise when a swap is configured', async () => {
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     const [original, replacement] = workout;
     globalThis.__TEST_MOCK_DATA__.config = {
       dayMode: 'numbered',
@@ -308,34 +337,34 @@ describe('App', () => {
   it('keeps each day\'s entries separate', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     const otherDay = CONFIG.days.find(d => d !== day);
-    const otherWorkout = getDayWorkout(CONFIG.dayMode, otherDay);
+    const otherWorkout = getDayWorkout('dumbbells', CONFIG.dayMode, otherDay);
     fireEvent.change(screen.getByLabelText('Day'), { target: { value: otherDay } });
     await screen.findByText(`${otherDay} · Exercise 1 of ${otherWorkout.length}`);
     const stored = JSON.parse(localStorage.getItem('exercise-entries'));
-    expect(stored[day][workout[0].id].weights[0]).toBe('50');
-    expect(stored[otherDay]).toBeUndefined();
+    expect(stored['dumbbells'][day][workout[0].id].weights[0]).toBe('50');
+    expect(stored['dumbbells'][otherDay]).toBeUndefined();
     fireEvent.change(screen.getByLabelText('Day'), { target: { value: day } });
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     const storedAgain = JSON.parse(localStorage.getItem('exercise-entries'));
-    expect(storedAgain[day][workout[0].id].weights[0]).toBe('50');
+    expect(storedAgain['dumbbells'][day][workout[0].id].weights[0]).toBe('50');
   });
 
   it('can switch day from the summary screen', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     for (let i = 0; i < workout.length; i++) {
       fireEvent.click(screen.getByRole('button', { name: i === workout.length - 1 ? 'Finish' : 'Next' }));
     }
     expect(screen.getByText('Workout complete')).toBeInTheDocument();
     const otherDay = CONFIG.days.find(d => d !== day);
-    const otherWorkout = getDayWorkout(CONFIG.dayMode, otherDay);
+    const otherWorkout = getDayWorkout('dumbbells', CONFIG.dayMode, otherDay);
     fireEvent.change(screen.getByLabelText('Day'), { target: { value: otherDay } });
     expect(await screen.findByText(`${otherDay} · Exercise 1 of ${otherWorkout.length}`)).toBeInTheDocument();
   });
@@ -343,7 +372,7 @@ describe('App', () => {
   it('shows a summary with saved reps and weight after finishing', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     for (let i = 0; i < workout.length; i++) {
       fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
@@ -358,7 +387,7 @@ describe('App', () => {
   it('downloads the workout as a .tab file', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-    const workout = getDayWorkout(CONFIG.dayMode, day);
+    const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -375,7 +404,7 @@ describe('App', () => {
     const openSettings = async () => {
       render(<App />);
       const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-      const workout = getDayWorkout(CONFIG.dayMode, day);
+      const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
       await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
       fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
       await screen.findByText('All workouts');
@@ -389,7 +418,7 @@ describe('App', () => {
 
     it('shows the workout type name in settings', async () => {
       await openSettings();
-      expect(screen.getByText('Dumbbells')).toBeInTheDocument();
+      expect(screen.getAllByText('Dumbbells').length).toBeGreaterThan(0);
     });
 
     it('lists all numbered workouts grouped by day', async () => {
@@ -427,7 +456,7 @@ describe('App', () => {
       globalThis.__TEST_MOCK_DATA__.config = { dayMode: 'odd-even', dayCount: 3, days: ['Odd', 'Even'] };
       render(<App />);
       const day = getDayForDate(new Date(), 'odd-even', ['Odd', 'Even']);
-      const workout = getDayWorkout('odd-even', day);
+      const workout = getDayWorkout('dumbbells', 'odd-even', day);
       await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
       fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
       fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -440,7 +469,7 @@ describe('App', () => {
     it('shows the last saved weight/rep for each exercise', async () => {
       render(<App />);
       const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
-      const workout = getDayWorkout(CONFIG.dayMode, day);
+      const workout = getDayWorkout('dumbbells', CONFIG.dayMode, day);
       await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
       fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
       fireEvent.change(screen.getByLabelText('Set 1 reps'), { target: { value: '10' } });
@@ -474,7 +503,7 @@ describe('App', () => {
       expect(await screen.findByText('Saved')).toBeInTheDocument();
       expect(globalThis.__TEST_MOCK_DATA__.config.days).toEqual(['Odd', 'Even']);
       fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-      const options = screen.getAllByRole('option').map(o => o.textContent);
+      const options = [...screen.getByLabelText('Day').options].map(o => o.textContent);
       expect(options).toEqual(['Odd', 'Even']);
     });
   });

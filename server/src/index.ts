@@ -135,7 +135,10 @@ const buildConfig = (overrides: Record<string, unknown>) => {
     ? Array.from({ length: dayCount }, (_, i) => `Day ${i + 1}`)
     : ['Odd', 'Even'];
   const exerciseSwaps = isSwapMap(overrides.exerciseSwaps) ? overrides.exerciseSwaps : {};
-  return { dayMode, dayCount, days, exerciseSwaps, workoutName: 'Dumbbells' };
+  const workoutType = typeof overrides.workoutType === 'string' && overrides.workoutType
+    ? overrides.workoutType
+    : 'dumbbells';
+  return { dayMode, dayCount, days, exerciseSwaps, workoutType };
 };
 
 app.get('/api/config', (_req, res) => {
@@ -143,34 +146,40 @@ app.get('/api/config', (_req, res) => {
 });
 
 app.put('/api/config', (req, res) => {
-  const { dayMode, dayCount, exerciseSwaps } = req.body || {};
-  if (dayMode !== 'odd-even' && dayMode !== 'numbered') {
+  const body = req.body || {};
+  const current = buildConfig(readConfigFile());
+  if (body.dayMode !== undefined && body.dayMode !== 'odd-even' && body.dayMode !== 'numbered') {
     res.status(400).json({ success: false, error: { message: 'dayMode must be "odd-even" or "numbered"' } });
     return;
   }
-  const count = Number(dayCount);
-  if (!Number.isInteger(count) || count < 1 || count > 10) {
-    res.status(400).json({ success: false, error: { message: 'dayCount must be an integer between 1 and 10' } });
-    return;
+  if (body.dayCount !== undefined) {
+    const count = Number(body.dayCount);
+    if (!Number.isInteger(count) || count < 1 || count > 10) {
+      res.status(400).json({ success: false, error: { message: 'dayCount must be an integer between 1 and 10' } });
+      return;
+    }
   }
-  let swaps: Record<string, Record<string, string>>;
-  if (exerciseSwaps === undefined) {
-    const existing = readConfigFile().exerciseSwaps;
-    swaps = isSwapMap(existing) ? existing : {};
-  } else if (isSwapMap(exerciseSwaps)) {
-    swaps = exerciseSwaps;
-  } else {
+  if (body.exerciseSwaps !== undefined && !isSwapMap(body.exerciseSwaps)) {
     res.status(400).json({ success: false, error: { message: 'exerciseSwaps must be an object of day → { exerciseId: replacementId }' } });
     return;
   }
+  if (body.workoutType !== undefined && (typeof body.workoutType !== 'string' || !body.workoutType)) {
+    res.status(400).json({ success: false, error: { message: 'workoutType must be a non-empty string' } });
+    return;
+  }
+  // Omitted fields keep their current values.
+  const dayMode = body.dayMode ?? current.dayMode;
+  const dayCount = body.dayCount !== undefined ? Number(body.dayCount) : current.dayCount;
+  const exerciseSwaps = body.exerciseSwaps !== undefined ? body.exerciseSwaps : current.exerciseSwaps;
+  const workoutType = body.workoutType !== undefined ? body.workoutType : current.workoutType;
   try {
     fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ dayMode, dayCount: count, exerciseSwaps: swaps }, null, 2));
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ dayMode, dayCount, exerciseSwaps, workoutType }, null, 2));
   } catch {
     res.status(500).json({ success: false, error: { message: 'Could not save config' } });
     return;
   }
-  res.json(buildConfig({ dayMode, dayCount: count, exerciseSwaps: swaps }));
+  res.json(buildConfig({ dayMode, dayCount, exerciseSwaps, workoutType }));
 });
 
 app.get('/api/admin/ping', requireAdminKey, (_req, res) => {

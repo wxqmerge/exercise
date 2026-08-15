@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { vi, beforeEach } from 'vitest';
 
-const DEFAULT_CONFIG = { dayMode: 'numbered', dayCount: 3, days: ['Day 1', 'Day 2', 'Day 3'], exerciseSwaps: {}, workoutName: 'Dumbbells' };
+const DEFAULT_CONFIG = { dayMode: 'numbered', dayCount: 3, days: ['Day 1', 'Day 2', 'Day 3'], exerciseSwaps: {}, workoutType: 'dumbbells' };
 
 const isSwapMap = (v) =>
   !!v && typeof v === 'object' && !Array.isArray(v) &&
@@ -107,20 +107,23 @@ const createFetchMock = () => {
     }
     if (typeof url === 'string' && url === '/api/config' && options?.method === 'PUT') {
       const body = JSON.parse(options.body);
-      if (body.dayMode !== 'odd-even' && body.dayMode !== 'numbered') {
+      const current = mockData.config;
+      if (body.dayMode !== undefined && body.dayMode !== 'odd-even' && body.dayMode !== 'numbered') {
         return Promise.resolve({
           ok: false,
           status: 400,
           json: () => Promise.resolve({ success: false, error: { message: 'dayMode must be "odd-even" or "numbered"' } }),
         });
       }
-      const count = Number(body.dayCount);
-      if (!Number.isInteger(count) || count < 1 || count > 10) {
-        return Promise.resolve({
-          ok: false,
-          status: 400,
-          json: () => Promise.resolve({ success: false, error: { message: 'dayCount must be an integer between 1 and 10' } }),
-        });
+      if (body.dayCount !== undefined) {
+        const count = Number(body.dayCount);
+        if (!Number.isInteger(count) || count < 1 || count > 10) {
+          return Promise.resolve({
+            ok: false,
+            status: 400,
+            json: () => Promise.resolve({ success: false, error: { message: 'dayCount must be an integer between 1 and 10' } }),
+          });
+        }
       }
       if (body.exerciseSwaps !== undefined && !isSwapMap(body.exerciseSwaps)) {
         return Promise.resolve({
@@ -129,17 +132,28 @@ const createFetchMock = () => {
           json: () => Promise.resolve({ success: false, error: { message: 'exerciseSwaps must be an object of day → { exerciseId: replacementId }' } }),
         });
       }
+      if (body.workoutType !== undefined && (typeof body.workoutType !== 'string' || !body.workoutType)) {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ success: false, error: { message: 'workoutType must be a non-empty string' } }),
+        });
+      }
+      // Omitted fields keep their current values.
+      const dayMode = body.dayMode ?? current.dayMode;
+      const dayCount = body.dayCount !== undefined ? Number(body.dayCount) : current.dayCount;
       const swaps = body.exerciseSwaps !== undefined
         ? body.exerciseSwaps
-        : (isSwapMap(mockData.config.exerciseSwaps) ? mockData.config.exerciseSwaps : {});
+        : (isSwapMap(current.exerciseSwaps) ? current.exerciseSwaps : {});
+      const workoutType = body.workoutType !== undefined ? body.workoutType : current.workoutType;
       mockData.config = {
-        dayMode: body.dayMode,
-        dayCount: count,
-        days: body.dayMode === 'numbered'
-          ? Array.from({ length: count }, (_, i) => `Day ${i + 1}`)
+        dayMode,
+        dayCount,
+        days: dayMode === 'numbered'
+          ? Array.from({ length: dayCount }, (_, i) => `Day ${i + 1}`)
           : ['Odd', 'Even'],
         exerciseSwaps: swaps,
-        workoutName: 'Dumbbells',
+        workoutType,
       };
       return Promise.resolve({
         ok: true,

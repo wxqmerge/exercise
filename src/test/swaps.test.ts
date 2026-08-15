@@ -4,31 +4,31 @@ import { getDayWorkout } from '../data/exercises';
 
 describe('applySwaps', () => {
   it('replaces the exercise only for the given day', () => {
-    const workout = getDayWorkout('numbered', 'Day 1');
+    const workout = getDayWorkout('dumbbells', 'numbered', 'Day 1');
     const [original, replacement] = workout;
     const swaps = { 'Day 1': { [original.id]: replacement.id } };
-    const swapped = applySwaps(workout, 'Day 1', swaps);
+    const swapped = applySwaps(workout, 'Day 1', swaps, 'dumbbells');
     expect(swapped[0].id).toBe(replacement.id);
     expect(swapped.slice(1)).toEqual(workout.slice(1));
-    const otherDay = getDayWorkout('numbered', 'Day 2');
-    expect(applySwaps(otherDay, 'Day 2', swaps)).toEqual(otherDay);
+    const otherDay = getDayWorkout('dumbbells', 'numbered', 'Day 2');
+    expect(applySwaps(otherDay, 'Day 2', swaps, 'dumbbells')).toEqual(otherDay);
   });
 
   it('keeps the original when the replacement id is unknown', () => {
-    const workout = getDayWorkout('numbered', 'Day 1');
-    const swapped = applySwaps(workout, 'Day 1', { 'Day 1': { [workout[0].id]: 'not-a-real-id' } });
+    const workout = getDayWorkout('dumbbells', 'numbered', 'Day 1');
+    const swapped = applySwaps(workout, 'Day 1', { 'Day 1': { [workout[0].id]: 'not-a-real-id' } }, 'dumbbells');
     expect(swapped[0].id).toBe(workout[0].id);
   });
 
   it('handles missing or empty swaps safely', () => {
-    const workout = getDayWorkout('numbered', 'Day 1');
-    expect(applySwaps(workout, 'Day 1', undefined)).toBe(workout);
-    expect(applySwaps(workout, 'Day 1', null)).toBe(workout);
-    expect(applySwaps(workout, 'Day 1', {})).toBe(workout);
+    const workout = getDayWorkout('dumbbells', 'numbered', 'Day 1');
+    expect(applySwaps(workout, 'Day 1', undefined, 'dumbbells')).toBe(workout);
+    expect(applySwaps(workout, 'Day 1', null, 'dumbbells')).toBe(workout);
+    expect(applySwaps(workout, 'Day 1', {}, 'dumbbells')).toBe(workout);
   });
 
   it('lists every program exercise exactly once', () => {
-    const all = programExercises();
+    const all = programExercises('dumbbells');
     expect(new Set(all.map(ex => ex.id)).size).toBe(all.length);
     expect(all.length).toBeGreaterThan(0);
   });

@@ -25,7 +25,7 @@ npm run lint           # ESLint on src/ only
 ## Architecture
 
 ### Config (Server Is Source of Truth)
-The client does NOT read config from env vars at build time. Instead, the server exposes `/api/config` (`{ dayMode, dayCount, days, exerciseSwaps, workoutName }`) and the client fetches it at runtime.
+The client does NOT read config from env vars at build time. Instead, the server exposes `/api/config` (`{ dayMode, dayCount, days, exerciseSwaps, workoutType }`) and the client fetches it at runtime.
 - `DAY_MODE=odd-even` → `days: ["Odd", "Even"]`
 - `DAY_MODE=numbered` + `DAY_COUNT=3` → `days: ["Day 1", "Day 2", "Day 3"]`
 - Server reads only `server/.env` (never committed). `PUT /api/config` persists overrides to `data/config.json` (gitignored), which take precedence over the env values. The in-app Settings page (Settings button on the workout/summary screens) changes day mode / day count, swaps exercises, and lists all workouts.
@@ -42,7 +42,14 @@ The default day is derived from the Julian date (day of year) in `src/utils/day.
 - `numbered`: `days[(doy - 1) mod N]` — doy divisible by 3 → Day 3
 - `odd-even`: odd doy → Odd, even doy → Even
 
-A Day pulldown (bottom row of the workout screen and the summary screen) overrides the auto day for the session (`selectedDay` in `App.jsx`; not persisted). Workout entries are stored per day in localStorage (`exercise-entries`: `{ [day]: { [exerciseId]: { reps, weights } } }`), saved on Next/Finish, cleared by "Start over".
+A Day pulldown (bottom row of the workout screen and the summary screen) overrides the auto day for the session (`selectedDay` in `App.jsx`; not persisted). Workout entries are stored per type and day in localStorage (`exercise-entries`: `{ [workoutType]: { [day]: { [exerciseId]: { reps, weights } } } }`), saved on Next/Finish, cleared by "Start over". Legacy stores keyed by day only are auto-migrated under the `dumbbells` type on read.
+
+### Workout Types (Multiple Routines)
+Programs live in `src/data/exercises.local.js` as `PROGRAMS: { [typeId]: { name, ODD_EVEN_WORKOUTS, NUMBERED_WORKOUTS } }` (currently `dumbbells` + `hotel`; `hotel` is numbered-only). `src/data/exercises.js` exports `PROGRAMS`, `DEFAULT_TYPE`, `getProgram(typeId)`, and `getDayWorkout(typeId, dayMode, day)`.
+- The selected type is persisted in the server config (`workoutType`, default `dumbbells`) and switched via a "Workout" pulldown on the workout, summary, and settings screens (`changeType` in `App.jsx` PUTs just `{ workoutType }`; omitted fields keep their values).
+- The type name shows on the workout, summary, and settings screens (derived client-side from `PROGRAMS[type].name`).
+- Entries, the `.tab` export, and the Settings "All workouts" list are scoped to the selected type. Images are shared across types (keyed by exercise id). Swaps stay keyed by day name, so a swap only bites when that day + exercise id exist in the selected type.
+- The static builder (`scripts/build-static.py`) reads `PROGRAMS` and emits `static/index.html` (hub) + one page per routine (`static/dumbbells.html`, `static/hotel.html`). `hotel.md`/`routine.md` are human-readable copies, not sources of truth.
 
 ### Exercise Swaps (Permanent Replacements)
 `exerciseSwaps` in the config is `{ [day]: { [originalExerciseId]: replacementExerciseId } }` — a permanent, server-persisted replacement of one program exercise with another, per day.
@@ -60,7 +67,7 @@ A Day pulldown (bottom row of the workout screen and the summary screen) overrid
 ## API Quirks
 - All `/api/*` endpoints require the `X-App-Key` header matching `APP_KEY` when `APP_KEY` is set (401 on mismatch); when `APP_KEY` is empty the API is open
 - Only `/api/admin/ping` uses the `requireAdminKey` middleware (`X-API-Key`); all other write endpoints are gated by the app key alone
-- **`/api/config`**: GET returns `{ dayMode, dayCount, days, exerciseSwaps, workoutName }` — client should not hardcode the day list. `workoutName` (currently the constant `'Dumbbells'`) names the workout type; it shows on the workout, summary, and settings screens. PUT (`{ dayMode, dayCount, exerciseSwaps? }`, dayMode `odd-even`|`numbered`, dayCount 1–10, exerciseSwaps `{ [day]: { [exerciseId]: replacementId } }`) persists to `data/config.json`, overriding the env values. Omitting `exerciseSwaps` keeps the existing swaps.
+- **`/api/config`**: GET returns `{ dayMode, dayCount, days, exerciseSwaps, workoutType }` — client should not hardcode the day list. `workoutType` (default `'dumbbells'`) is the selected workout type; the client resolves its name from `PROGRAMS`. PUT is partial — every field optional (`dayMode?`, `dayCount?`, `exerciseSwaps?`, `workoutType?`); omitted fields keep their current values, provided fields are validated (dayMode `odd-even`|`numbered`, dayCount 1–10, exerciseSwaps `{ [day]: { [exerciseId]: replacementId } }`, workoutType non-empty string) and persisted to `data/config.json`, overriding the env values.
 - **`/api/export` / `/api/import`**: Plain-JSON backup of all images (base64, no encryption).
 
 ## Dev Server Gotchas

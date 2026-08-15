@@ -27,11 +27,11 @@ BASE_CSS = [
 ]
 
 
-def load_program():
+def load_programs():
     code = (
         "import { pathToFileURL } from 'node:url';"
         "const m = await import(pathToFileURL(process.argv[1]).href);"
-        "console.log(JSON.stringify(m.NUMBERED_WORKOUTS));"
+        "console.log(JSON.stringify(m.PROGRAMS));"
     )
     res = subprocess.run(
         ["node", "--input-type=module", "-e", code, str(REPO / "src" / "data" / "exercises.local.js")],
@@ -39,42 +39,28 @@ def load_program():
     )
     if res.returncode != 0:
         raise SystemExit(f"node failed:\n{res.stderr}")
-    numbered = json.loads(res.stdout)
-    return [(f"Day {k}", [(e["id"], e["name"], e["description"]) for e in numbered[k]])
-            for k in sorted(numbered, key=lambda x: int(x))]
+    return json.loads(res.stdout)
 
 
-def slugify(name):
-    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+def days_from_program(program):
+    return [(f"Day {k}", [(e["id"], e["name"], e["description"]) for e in program["NUMBERED_WORKOUTS"][k]])
+            for k in sorted(program["NUMBERED_WORKOUTS"], key=lambda x: int(x))]
 
 
-def load_hotel():
-    days = []
-    current = None
-    for line in (REPO / "hotel.md").read_text(encoding="utf-8").splitlines():
-        m = re.match(r"^## (Day \d+):\s*(.*)$", line)
-        if m:
-            current = [f"{m.group(1)} · {m.group(2)}", []]
-            days.append(current)
-            continue
-        m = re.match(r"^- \*\*(.+?):\*\*\s*(.*)$", line)
-        if m and current is not None:
-            current[1].append((slugify(m.group(1)), m.group(1), m.group(2)))
-    return days
-
+PROGRAMS = load_programs()
 
 ROUTINES = [
     {
         "slug": "dumbbells",
-        "title": "Dumbbells",
+        "title": PROGRAMS["dumbbells"]["name"],
         "note": "Do each exercise once to find your working weight and reps, then repeat the same loads each session.",
-        "days": load_program(),
+        "days": days_from_program(PROGRAMS["dumbbells"]),
     },
     {
         "slug": "hotel",
-        "title": "Hotel",
+        "title": PROGRAMS["hotel"]["name"],
         "note": "",
-        "days": load_hotel(),
+        "days": days_from_program(PROGRAMS["hotel"]),
     },
 ]
 
