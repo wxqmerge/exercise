@@ -124,6 +124,13 @@ if (isDev) {
   app.use((_req, _res, next) => {
     const req = _req as http.IncomingMessage;
     const res = _res as http.ServerResponse;
+    const url = req.url || '/';
+    if (url.startsWith('/api') || url.startsWith('/health')) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: false, error: { message: 'Not found' } }));
+      return;
+    }
     const proxyReq = http.request(
       { hostname: 'localhost', port: 5173, path: req.url || '/', method: req.method, headers: { ...req.headers, host: 'localhost:5173' } },
       proxyRes => {
