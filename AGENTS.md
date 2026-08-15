@@ -25,10 +25,10 @@ npm run lint           # ESLint on src/ only
 ## Architecture
 
 ### Config (Server Is Source of Truth)
-The client does NOT read config from env vars at build time. Instead, the server exposes `/api/config` (`{ dayMode, days }`) and the client fetches it at runtime.
+The client does NOT read config from env vars at build time. Instead, the server exposes `/api/config` (`{ dayMode, dayCount, days }`) and the client fetches it at runtime.
 - `DAY_MODE=odd-even` → `days: ["Odd", "Even"]`
 - `DAY_MODE=numbered` + `DAY_COUNT=3` → `days: ["Day 1", "Day 2", "Day 3"]`
-Server reads only `server/.env` (never committed).
+- Server reads only `server/.env` (never committed). `PUT /api/config` persists overrides to `data/config.json` (gitignored), which take precedence over the env values. The in-app Settings page (Settings button on the workout/summary screens) changes day mode / day count and lists all workouts.
 
 ### App Key (Optional)
 - `APP_KEY` in `server/.env` gates the entire API. If it is set, every `/api/*` request must carry a matching `X-App-Key` header (401 on mismatch). If it is empty/unset, the API is open and no key is required.
@@ -53,8 +53,8 @@ A Day pulldown (bottom row of the workout screen and the summary screen) overrid
 
 ## API Quirks
 - All `/api/*` endpoints require the `X-App-Key` header matching `APP_KEY` when `APP_KEY` is set (401 on mismatch); when `APP_KEY` is empty the API is open
-- Write endpoints (`PUT`, `DELETE`, `POST`) require `X-API-Key` header (see `requireAdminKey` middleware)
-- **`/api/config`**: Returns `{ dayMode, days }` — client should not hardcode the day list.
+- Only `/api/admin/ping` uses the `requireAdminKey` middleware (`X-API-Key`); all other write endpoints are gated by the app key alone
+- **`/api/config`**: GET returns `{ dayMode, dayCount, days }` — client should not hardcode the day list. PUT (`{ dayMode, dayCount }`, dayMode `odd-even`|`numbered`, dayCount 1–10) persists to `data/config.json`, overriding the env values.
 - **`/api/export` / `/api/import`**: Plain-JSON backup of all images (base64, no encryption).
 
 ## Dev Server Gotchas

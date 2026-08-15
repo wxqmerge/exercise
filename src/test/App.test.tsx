@@ -282,4 +282,57 @@ describe('App', () => {
     expect(screen.getAllByText('50').length).toBe(workout.length);
     expect(screen.getByText(`Total volume: ${workout.length * 500}`)).toBeInTheDocument();
   });
+
+  describe('Settings', () => {
+    const openSettings = async () => {
+      render(<App />);
+      const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+      const workout = getDayWorkout(CONFIG.dayMode, day);
+      await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+      await screen.findByText('All workouts');
+    };
+
+    it('opens the settings page from the workout screen', async () => {
+      await openSettings();
+      expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    });
+
+    it('lists all numbered workouts grouped by day', async () => {
+      await openSettings();
+      expect(screen.getByText(/Day 1/)).toBeInTheDocument();
+      expect(screen.getByText(/Day 2/)).toBeInTheDocument();
+      expect(screen.getByText(/Day 3/)).toBeInTheDocument();
+      expect(screen.getByText('Goblet Squat')).toBeInTheDocument();
+      expect(screen.getByText('Weighted Marching')).toBeInTheDocument();
+    });
+
+    it('shows the odd/even workouts when that mode is selected', async () => {
+      await openSettings();
+      fireEvent.change(screen.getByLabelText('Day mode'), { target: { value: 'odd-even' } });
+      expect(screen.getByRole('heading', { name: /Odd/ })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Even/ })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /Day 1/ })).not.toBeInTheDocument();
+    });
+
+    it('changes how many day sections are listed', async () => {
+      await openSettings();
+      fireEvent.change(screen.getByLabelText('Day count'), { target: { value: '2' } });
+      expect(screen.getByText(/Day 1/)).toBeInTheDocument();
+      expect(screen.getByText(/Day 2/)).toBeInTheDocument();
+      expect(screen.queryByText(/Day 3/)).not.toBeInTheDocument();
+    });
+
+    it('saves the day mode and applies it to the workout screen', async () => {
+      await openSettings();
+      fireEvent.change(screen.getByLabelText('Day mode'), { target: { value: 'odd-even' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText('Saved')).toBeInTheDocument();
+      expect(globalThis.__TEST_MOCK_DATA__.config.days).toEqual(['Odd', 'Even']);
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      const options = screen.getAllByRole('option').map(o => o.textContent);
+      expect(options).toEqual(['Odd', 'Even']);
+    });
+  });
 });

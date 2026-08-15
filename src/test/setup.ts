@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { vi, beforeEach } from 'vitest';
 
-const DEFAULT_CONFIG = { dayMode: 'numbered', days: ['Day 1', 'Day 2', 'Day 3'] };
+const DEFAULT_CONFIG = { dayMode: 'numbered', dayCount: 3, days: ['Day 1', 'Day 2', 'Day 3'] };
 
 const mockData = {
   config: { ...DEFAULT_CONFIG },
@@ -13,7 +13,7 @@ const mockData = {
 
 const createFetchMock = () => {
   return vi.fn((url, options) => {
-    if (typeof url === 'string' && url === '/api/config') {
+    if (typeof url === 'string' && url === '/api/config' && options?.method !== 'PUT') {
       if (mockData.configStatus !== 200) {
         return Promise.resolve({
           ok: false,
@@ -97,6 +97,35 @@ const createFetchMock = () => {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true }),
+      });
+    }
+    if (typeof url === 'string' && url === '/api/config' && options?.method === 'PUT') {
+      const body = JSON.parse(options.body);
+      if (body.dayMode !== 'odd-even' && body.dayMode !== 'numbered') {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ success: false, error: { message: 'dayMode must be "odd-even" or "numbered"' } }),
+        });
+      }
+      const count = Number(body.dayCount);
+      if (!Number.isInteger(count) || count < 1 || count > 10) {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ success: false, error: { message: 'dayCount must be an integer between 1 and 10' } }),
+        });
+      }
+      mockData.config = {
+        dayMode: body.dayMode,
+        dayCount: count,
+        days: body.dayMode === 'numbered'
+          ? Array.from({ length: count }, (_, i) => `Day ${i + 1}`)
+          : ['Odd', 'Even'],
+      };
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockData.config),
       });
     }
     if (options?.method === 'PUT' || options?.method === 'DELETE' || options?.method === 'POST') {

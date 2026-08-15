@@ -5,6 +5,7 @@ export function useConfig() {
   const [config, setConfig] = useState(null)
   const [error, setError] = useState(null)
   const [invalidKey, setInvalidKey] = useState(false)
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -29,7 +30,7 @@ export function useConfig() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [reload])
 
-  return { config, error, invalidKey }
+  return { config, error, invalidKey, refresh: () => setReload(r => r + 1) }
 }

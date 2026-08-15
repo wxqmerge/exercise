@@ -5,13 +5,15 @@ import { getDayWorkout } from './data/exercises'
 import { getDayForDate } from './utils/day'
 import { getApiKey, setApiKey, clearApiKey, getKeyFromUrl } from './utils/api'
 import Workout from './components/Workout'
+import Settings from './components/Settings'
 import KeyGate from './components/KeyGate'
 
 function WorkoutApp({ onKeyCleared }) {
-  const { config, error, invalidKey } = useConfig()
+  const { config, error, invalidKey, refresh } = useConfig()
   const { images, overrides, setOverride, removeOverride, refetch } = useExerciseImages()
   const [today] = useState(() => new Date())
   const [selectedDay, setSelectedDay] = useState(null)
+  const [view, setView] = useState('workout')
 
   const changeKey = () => {
     clearApiKey()
@@ -45,7 +47,21 @@ function WorkoutApp({ onKeyCleared }) {
     )
   }
 
-  const day = selectedDay || getDayForDate(today, config.dayMode, config.days)
+  const day = selectedDay && config.days.includes(selectedDay)
+    ? selectedDay
+    : getDayForDate(today, config.dayMode, config.days)
+
+  if (view === 'settings') {
+    return (
+      <Settings
+        config={config}
+        onSaved={data => {
+          if (data?.days) refresh()
+        }}
+        onBack={() => setView('workout')}
+      />
+    )
+  }
 
   return (
     <Workout
@@ -58,6 +74,7 @@ function WorkoutApp({ onKeyCleared }) {
       onSetImage={setOverride}
       onRemoveImage={removeOverride}
       onRefetchImages={refetch}
+      onOpenSettings={() => setView('settings')}
     />
   )
 }

@@ -49,7 +49,7 @@ const clearDayEntries = (day) => {
   }
 }
 
-export default function Workout({ day, days = [], onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages }) {
+export default function Workout({ day, days = [], onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState(() => loadDayEntries(day))
   const [reps, setReps] = useState(['10', '10', '10'])
@@ -176,9 +176,17 @@ export default function Workout({ day, days = [], onDayChange, exercises, images
             </tbody>
           </table>
             <p className="mt-4 text-right font-semibold">Total volume: {totalVolume}</p>
-            <div className="mt-4 flex items-center justify-center gap-1">
-              <span className="text-xs text-gray-400">Day</span>
-              {daySelect}
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                Day
+                {daySelect}
+              </span>
+              <button
+                onClick={onOpenSettings}
+                className="px-2 py-1 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-50"
+              >
+                Settings
+              </button>
             </div>
             <button
               onClick={restart}
@@ -503,6 +511,12 @@ export default function Workout({ day, days = [], onDayChange, exercises, images
               e.target.value = ''
             }}
           />
+          <button
+            onClick={onOpenSettings}
+            className="px-2 py-1 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-50"
+          >
+            Settings
+          </button>
         </div>
       </div>
 

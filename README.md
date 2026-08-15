@@ -34,6 +34,7 @@ Copy `.env` values from your environment (never committed). Server reads `server
 
 - `DAY_MODE=odd-even` → workout day is Odd / Even by day-of-year parity
 - `DAY_MODE=numbered` + `DAY_COUNT=3` → workout day is Day 1 / Day 2 / Day 3 by day of year
+- The in-app **Settings** page (Settings button on the workout screen) can change the day mode / day count at runtime; the choice is saved to `data/config.json` on the server and overrides the env values. It also lists all workouts.
 
 ## How it works
 1. The day is picked automatically from the Julian date (day of year): `Day 1/2/3` cycles, with days divisible by 3 → Day 3 (odd/even mode uses day parity)

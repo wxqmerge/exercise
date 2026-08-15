@@ -102,15 +102,56 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-app.get('/api/config', (_req, res) => {
-  const dayMode = process.env.DAY_MODE === 'numbered' ? 'numbered' : 'odd-even';
+const CONFIG_FILE = path.join(__dirname, '../../data/config.json');
+
+const readConfigFile = (): Record<string, unknown> => {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const buildConfig = (overrides: Record<string, unknown>) => {
+  const envMode = process.env.DAY_MODE === 'numbered' ? 'numbered' : 'odd-even';
+  const dayMode = overrides.dayMode === 'numbered' || overrides.dayMode === 'odd-even'
+    ? overrides.dayMode
+    : envMode;
+  const envCount = Math.max(1, parseInt(process.env.DAY_COUNT || '3', 10) || 3);
+  const fileCount = parseInt(String(overrides.dayCount ?? ''), 10);
+  const dayCount = Number.isInteger(fileCount) && fileCount >= 1 && fileCount <= 10
+    ? fileCount
+    : envCount;
   const days = dayMode === 'numbered'
-    ? Array.from(
-        { length: Math.max(1, parseInt(process.env.DAY_COUNT || '3', 10) || 3) },
-        (_, i) => `Day ${i + 1}`,
-      )
+    ? Array.from({ length: dayCount }, (_, i) => `Day ${i + 1}`)
     : ['Odd', 'Even'];
-  res.json({ dayMode, days });
+  return { dayMode, dayCount, days };
+};
+
+app.get('/api/config', (_req, res) => {
+  res.json(buildConfig(readConfigFile()));
+});
+
+app.put('/api/config', (req, res) => {
+  const { dayMode, dayCount } = req.body || {};
+  if (dayMode !== 'odd-even' && dayMode !== 'numbered') {
+    res.status(400).json({ success: false, error: { message: 'dayMode must be "odd-even" or "numbered"' } });
+    return;
+  }
+  const count = Number(dayCount);
+  if (!Number.isInteger(count) || count < 1 || count > 10) {
+    res.status(400).json({ success: false, error: { message: 'dayCount must be an integer between 1 and 10' } });
+    return;
+  }
+  try {
+    fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ dayMode, dayCount: count }, null, 2));
+  } catch {
+    res.status(500).json({ success: false, error: { message: 'Could not save config' } });
+    return;
+  }
+  res.json(buildConfig({ dayMode, dayCount: count }));
 });
 
 app.get('/api/admin/ping', requireAdminKey, (_req, res) => {

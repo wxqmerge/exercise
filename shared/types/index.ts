@@ -1,5 +1,6 @@
 export interface AppConfig {
   dayMode: 'odd-even' | 'numbered';
+  dayCount: number;
   days: string[];
 }
 
