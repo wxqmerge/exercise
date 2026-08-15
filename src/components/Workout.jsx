@@ -166,34 +166,38 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f5f0] flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow p-8 max-w-md w-full">
-        <p className="text-sm text-gray-500">
-          {day} · Exercise {index + 1} of {exercises.length}
-        </p>
-        <h1 className="mt-1 text-2xl font-bold text-primary">{exercise.name}</h1>
+    <main className="min-h-screen bg-[#f5f5f0]">
+      <div className="max-w-3xl mx-auto bg-white shadow">
+        <div className="px-4 pt-4">
+          <p className="text-sm text-gray-500">
+            {day} · Exercise {index + 1} of {exercises.length}
+          </p>
+          <h1 className="mt-1 text-2xl font-bold text-primary">{exercise.name}</h1>
+        </div>
 
         {images[exercise.id] && !imageError ? (
-          <div className="mt-4">
+          <div>
             <img
               src={images[exercise.id]}
               alt={exercise.name}
-              className="w-full aspect-[4/3] object-cover rounded cursor-zoom-in"
+              className="mt-4 w-full h-[70vh] object-cover cursor-zoom-in"
               onClick={() => setZoomed(true)}
               onError={() => {
                 setImageError(true)
                 setUrlDraft(images[exercise.id] || '')
               }}
             />
-            <button
-              onClick={removeImage}
-              className="mt-2 text-xs text-gray-400 hover:text-red-500"
-            >
-              Remove image
-            </button>
+            <div className="px-4 py-2">
+              <button
+                onClick={removeImage}
+                className="text-xs text-gray-400 hover:text-red-500"
+              >
+                Remove image
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="mt-4 rounded border-2 border-dashed border-gray-300 p-4 text-center">
+          <div className="m-4 h-[70vh] rounded border-2 border-dashed border-gray-300 flex flex-col items-center justify-center p-4 text-center">
             <a
               href={imageSearchUrl(exercise.name)}
               target="_blank"
@@ -202,7 +206,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
             >
               No image — click to search
             </a>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex gap-2 w-full max-w-md">
               <input
                 value={urlDraft}
                 onChange={e => {
@@ -224,9 +228,9 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
             </div>
           </div>
         )}
-        {imageHint && <p className="mt-2 text-xs text-red-500">{imageHint}</p>}
+        {imageHint && <p className="px-4 pb-2 text-xs text-red-500">{imageHint}</p>}
 
-        <div className="mt-6 grid grid-cols-2 gap-4">
+        <div className="px-6 pb-2 grid grid-cols-2 gap-4">
           <label className="block">
             <span className="text-sm text-gray-600">Reps</span>
             <input
@@ -254,7 +258,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
           </label>
         </div>
 
-        <div className="mt-6 flex gap-3">
+        <div className="px-6 pb-6 flex gap-3">
           {index > 0 && (
             <button
               onClick={goBack}
