@@ -22,7 +22,7 @@ const workoutsFor = (mode, count) => {
   }))
 }
 
-export default function Settings({ config, onSaved, onBack }) {
+export default function Settings({ config, workoutName = '', onSaved, onBack }) {
   const [mode, setMode] = useState(config.dayMode)
   const [count, setCount] = useState(config.dayCount || 3)
   const [swaps, setSwaps] = useState(config.exerciseSwaps || {})
@@ -114,7 +114,10 @@ export default function Settings({ config, onSaved, onBack }) {
         </div>
 
         <div className="px-6 py-4">
-          <h2 className="text-sm font-semibold text-gray-700">All workouts</h2>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-sm font-semibold text-gray-700">All workouts</h2>
+            {workoutName && <span className="text-xs text-gray-400">{workoutName}</span>}
+          </div>
           <p className="mt-1 text-xs text-gray-400">
             Pick a replacement to permanently swap an exercise on that day, then press Save.
           </p>

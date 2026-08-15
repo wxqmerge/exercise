@@ -191,6 +191,26 @@ describe('App', () => {
     expect(screen.getByText(`${day} · Exercise 2 of ${workout.length}`)).toBeInTheDocument();
   });
 
+  it('shows the workout type name on the workout screen', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    expect(screen.getByText('Dumbbells')).toBeInTheDocument();
+  });
+
+  it('shows the workout type name on the summary screen', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    for (let i = 0; i < workout.length; i++) {
+      fireEvent.click(screen.getByRole('button', { name: i === workout.length - 1 ? 'Finish' : 'Next' }));
+    }
+    expect(screen.getByText('Workout complete')).toBeInTheDocument();
+    expect(screen.getByText('Dumbbells')).toBeInTheDocument();
+  });
+
   it('fills the entered weight into the other empty sets', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
@@ -365,6 +385,11 @@ describe('App', () => {
       await openSettings();
       expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    });
+
+    it('shows the workout type name in settings', async () => {
+      await openSettings();
+      expect(screen.getByText('Dumbbells')).toBeInTheDocument();
     });
 
     it('lists all numbered workouts grouped by day', async () => {

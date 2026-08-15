@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { vi, beforeEach } from 'vitest';
 
-const DEFAULT_CONFIG = { dayMode: 'numbered', dayCount: 3, days: ['Day 1', 'Day 2', 'Day 3'], exerciseSwaps: {} };
+const DEFAULT_CONFIG = { dayMode: 'numbered', dayCount: 3, days: ['Day 1', 'Day 2', 'Day 3'], exerciseSwaps: {}, workoutName: 'Dumbbells' };
 
 const isSwapMap = (v) =>
   !!v && typeof v === 'object' && !Array.isArray(v) &&
@@ -139,6 +139,7 @@ const createFetchMock = () => {
           ? Array.from({ length: count }, (_, i) => `Day ${i + 1}`)
           : ['Odd', 'Even'],
         exerciseSwaps: swaps,
+        workoutName: 'Dumbbells',
       };
       return Promise.resolve({
         ok: true,

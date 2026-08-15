@@ -25,7 +25,7 @@ npm run lint           # ESLint on src/ only
 ## Architecture
 
 ### Config (Server Is Source of Truth)
-The client does NOT read config from env vars at build time. Instead, the server exposes `/api/config` (`{ dayMode, dayCount, days, exerciseSwaps }`) and the client fetches it at runtime.
+The client does NOT read config from env vars at build time. Instead, the server exposes `/api/config` (`{ dayMode, dayCount, days, exerciseSwaps, workoutName }`) and the client fetches it at runtime.
 - `DAY_MODE=odd-even` → `days: ["Odd", "Even"]`
 - `DAY_MODE=numbered` + `DAY_COUNT=3` → `days: ["Day 1", "Day 2", "Day 3"]`
 - Server reads only `server/.env` (never committed). `PUT /api/config` persists overrides to `data/config.json` (gitignored), which take precedence over the env values. The in-app Settings page (Settings button on the workout/summary screens) changes day mode / day count, swaps exercises, and lists all workouts.
@@ -60,7 +60,7 @@ A Day pulldown (bottom row of the workout screen and the summary screen) overrid
 ## API Quirks
 - All `/api/*` endpoints require the `X-App-Key` header matching `APP_KEY` when `APP_KEY` is set (401 on mismatch); when `APP_KEY` is empty the API is open
 - Only `/api/admin/ping` uses the `requireAdminKey` middleware (`X-API-Key`); all other write endpoints are gated by the app key alone
-- **`/api/config`**: GET returns `{ dayMode, dayCount, days, exerciseSwaps }` — client should not hardcode the day list. PUT (`{ dayMode, dayCount, exerciseSwaps? }`, dayMode `odd-even`|`numbered`, dayCount 1–10, exerciseSwaps `{ [day]: { [exerciseId]: replacementId } }`) persists to `data/config.json`, overriding the env values. Omitting `exerciseSwaps` keeps the existing swaps.
+- **`/api/config`**: GET returns `{ dayMode, dayCount, days, exerciseSwaps, workoutName }` — client should not hardcode the day list. `workoutName` (currently the constant `'Dumbbells'`) names the workout type; it shows on the workout, summary, and settings screens. PUT (`{ dayMode, dayCount, exerciseSwaps? }`, dayMode `odd-even`|`numbered`, dayCount 1–10, exerciseSwaps `{ [day]: { [exerciseId]: replacementId } }`) persists to `data/config.json`, overriding the env values. Omitting `exerciseSwaps` keeps the existing swaps.
 - **`/api/export` / `/api/import`**: Plain-JSON backup of all images (base64, no encryption).
 
 ## Dev Server Gotchas

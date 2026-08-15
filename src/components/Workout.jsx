@@ -20,7 +20,7 @@ const isImageUrl = (url) => {
   }
 }
 
-export default function Workout({ day, days = [], dayMode = 'numbered', onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
+export default function Workout({ day, days = [], dayMode = 'numbered', workoutName = '', onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState(() => loadDayEntries(day))
   const [reps, setReps] = useState(['10', '10', '10'])
@@ -110,7 +110,8 @@ export default function Workout({ day, days = [], dayMode = 'numbered', onDayCha
     return (
       <main className="min-h-screen bg-[#f5f5f0] flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow p-8 max-w-md w-full text-center">
-          <h1 className="text-2xl font-bold text-primary">{day}</h1>
+          {workoutName && <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase">{workoutName}</p>}
+          <h1 className="mt-1 text-2xl font-bold text-primary">{day}</h1>
           <p className="mt-2 text-gray-600">No exercises configured for this day.</p>
         </div>
       </main>
@@ -127,6 +128,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', onDayCha
       <main className="min-h-screen bg-[#f5f5f0] flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow p-8 max-w-md w-full">
           <h1 className="text-2xl font-bold text-primary text-center">Workout complete</h1>
+          {workoutName && <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase">{workoutName}</p>}
           <p className="text-center text-gray-500">{day}</p>
           <table className="w-full mt-4 text-sm">
             <thead>
@@ -338,7 +340,8 @@ export default function Workout({ day, days = [], dayMode = 'numbered', onDayCha
     <main className="min-h-screen bg-[#f5f5f0]">
       <div className="max-w-3xl mx-auto bg-white shadow">
         <div className="px-4 pt-4 text-center">
-          <p className="text-sm text-gray-500">
+          {workoutName && <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase">{workoutName}</p>}
+          <p className="mt-1 text-sm text-gray-500">
             {day} · Exercise {index + 1} of {exercises.length}
           </p>
           <h1 className="mt-1 text-2xl font-bold text-primary">{exercise.name}</h1>

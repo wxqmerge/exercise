@@ -135,7 +135,7 @@ const buildConfig = (overrides: Record<string, unknown>) => {
     ? Array.from({ length: dayCount }, (_, i) => `Day ${i + 1}`)
     : ['Odd', 'Even'];
   const exerciseSwaps = isSwapMap(overrides.exerciseSwaps) ? overrides.exerciseSwaps : {};
-  return { dayMode, dayCount, days, exerciseSwaps };
+  return { dayMode, dayCount, days, exerciseSwaps, workoutName: 'Dumbbells' };
 };
 
 app.get('/api/config', (_req, res) => {

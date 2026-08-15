@@ -56,6 +56,7 @@ function WorkoutApp({ onKeyCleared }) {
     return (
       <Settings
         config={config}
+        workoutName={config.workoutName}
         onSaved={data => {
           if (data?.days) refresh()
         }}
@@ -69,6 +70,7 @@ function WorkoutApp({ onKeyCleared }) {
       day={day}
       days={config.days}
       dayMode={config.dayMode}
+      workoutName={config.workoutName}
       onDayChange={setSelectedDay}
       exercises={applySwaps(getDayWorkout(config.dayMode, day), day, config.exerciseSwaps)}
       images={images}
