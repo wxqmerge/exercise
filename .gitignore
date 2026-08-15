@@ -42,6 +42,9 @@ shared/types/*.d.ts.map
 # Python cache
 __pycache__/
 
+# Local exercise program (never commit)
+src/data/exercises.local.js
+
 # Local data (images are user-picked, never committed)
 data/*
 !data/images/

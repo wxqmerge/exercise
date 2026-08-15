@@ -40,6 +40,6 @@ Copy `.env` values from your environment (never committed). Server reads root `.
 ### Adding an exercise image
 Two ways:
 1. **Paste a link in the app** — on an exercise without an image, paste the image URL into the text box and hit Save. Stored in your browser (localStorage).
-2. **Drop a file** — save any image (jpg/png/gif) into `data/images/` named after the exercise id from `src/data/exercises.js` (e.g. `data/images/squat.jpg`). Reload the app — it appears automatically.
+2. **Drop a file** — save any image (jpg/png/gif) into `data/images/` named after the exercise id from `src/data/exercises.local.js` (e.g. `data/images/squat.jpg`). Reload the app — it appears automatically.
 3. Enter reps and weight, click **Next** (or **Finish** on the last one)
 4. Summary screen lists all exercises with reps/weight and total volume

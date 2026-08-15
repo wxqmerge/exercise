@@ -5,10 +5,13 @@
 - `shared/types/`: Shared TypeScript interfaces, compiled to JS via `scripts/compile-shared.js`
 - `scripts/`: Build helpers (`compile-shared.js`, `patch-shared-imports.js`, `flatten-server-dist.js`)
 - `data/images/`: User-picked exercise images (never commit)
-- **Never commit**: `.env*`, `server/.env`, `node_modules/`, `dist/`, `server/dist/`, `data/`
+- **Never commit**: `.env*`, `server/.env`, `node_modules/`, `dist/`, `server/dist/`, `data/`, `src/data/exercises.local.js`
+
+## Exercise Program
+The real program lives in `src/data/exercises.local.js` (gitignored, never committed). The tracked `src/data/exercises.js` is a loader that uses `exercises.local.js` when present and falls back to a generic sample otherwise. Edit `exercises.local.js` to change the program.
 
 ## Exercise Images
-Images are user-picked, not hardcoded. Drop an image file into `data/images/` named `<exercise-id>.<ext>` (id from `src/data/exercises.js`, e.g. `squat.jpg`, `bench-press.gif`). The server lists them via `GET /api/images` (`{ id: url }`) and serves them at `/api/images/<file>`; the client shows the image when present, otherwise the "No image — click to search" link. Reload the app after adding files.
+Images are user-picked, not hardcoded. Drop an image file into `data/images/` named `<exercise-id>.<ext>` (id from `src/data/exercises.local.js`, e.g. `squat.jpg`, `bench-press.gif`). The server lists them via `GET /api/images` (`{ id: url }`) and serves them at `/api/images/<file>`; the client shows the image when present, otherwise the "No image — click to search" link. Reload the app after adding files.
 
 ## Commands
 ```
