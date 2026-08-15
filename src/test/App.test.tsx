@@ -24,6 +24,14 @@ describe('App', () => {
     expect(img).toHaveAttribute('src', '/api/images/test.jpg');
   });
 
+  it('shows the exercise description when present', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    expect(screen.getByText(workout[0].description)).toBeInTheDocument();
+  });
+
   it('offers an image search when the exercise has no image', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);

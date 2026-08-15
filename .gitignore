@@ -45,6 +45,9 @@ __pycache__/
 # Local exercise program (never commit)
 src/data/exercises.local.js
 
+# Personal routine (never commit)
+routine.md
+
 # Local data (images are user-picked, never committed)
 data/*
 !data/images/

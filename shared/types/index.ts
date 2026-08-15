@@ -6,6 +6,7 @@ export interface AppConfig {
 export interface Exercise {
   id: string;
   name: string;
+  description?: string;
   image?: string;
 }
 

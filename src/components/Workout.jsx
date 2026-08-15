@@ -173,6 +173,9 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
             {day} · Exercise {index + 1} of {exercises.length}
           </p>
           <h1 className="mt-1 text-2xl font-bold text-primary">{exercise.name}</h1>
+          {exercise.description && (
+            <p className="mt-2 text-sm leading-relaxed text-gray-600">{exercise.description}</p>
+          )}
         </div>
 
         {images[exercise.id] && !imageError ? (
