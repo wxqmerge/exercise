@@ -1,8 +1,19 @@
 import { useState } from 'react'
 import { apiFetch } from '../utils/api'
+import { findEntry } from '../utils/entries'
 import { ODD_EVEN_WORKOUTS, NUMBERED_WORKOUTS } from '../data/exercises'
 
 const DAY_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+const formatEntry = (entry) => {
+  const parts = []
+  entry.reps.forEach((r, i) => {
+    const w = entry.weights[i] || ''
+    if (w) parts.push(w)
+    if (r) parts.push(r)
+  })
+  return parts.join('/')
+}
 
 const workoutsFor = (mode, count) => {
   if (mode === 'numbered') {
@@ -110,24 +121,37 @@ export default function Settings({ config, onSaved, onBack }) {
         <div className="px-6 py-4">
           <h2 className="text-sm font-semibold text-gray-700">All workouts</h2>
           <div className="mt-2 space-y-4">
-            {workouts.map(({ day, exercises }) => (
-              <section key={day}>
-                <h3 className="text-sm font-semibold text-gray-700">
-                  {day} <span className="text-gray-400 font-normal">({exercises.length})</span>
-                </h3>
-                {exercises.length > 0 ? (
-                  <ul className="mt-1 space-y-1">
-                    {exercises.map(ex => (
-                      <li key={ex.id} className="text-sm text-gray-600">
-                        {ex.name}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-1 text-sm text-gray-400">No exercises configured</p>
-                )}
-              </section>
-            ))}
+            {workouts.map(({ day, exercises }) => {
+              return (
+                <section key={day}>
+                  <h3 className="text-sm font-semibold text-gray-700">
+                    {day} <span className="text-gray-400 font-normal">({exercises.length})</span>
+                  </h3>
+                  {exercises.length > 0 ? (
+                    <ul className="mt-1 space-y-1">
+                      {exercises.map(ex => {
+                        const entry = findEntry(day, ex.id)
+                        return (
+                          <li
+                            key={ex.id}
+                            className="flex items-baseline justify-between gap-2 text-sm"
+                          >
+                            <span className="text-gray-600">{ex.name}</span>
+                            {entry && (
+                              <span className="text-gray-400 tabular-nums whitespace-nowrap">
+                                {formatEntry(entry)}
+                              </span>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-400">No exercises configured</p>
+                  )}
+                </section>
+              )
+            })}
           </div>
         </div>
       </div>

@@ -324,6 +324,37 @@ describe('App', () => {
       expect(screen.queryByText(/Day 3/)).not.toBeInTheDocument();
     });
 
+    it('shows entries saved under a different day for the same exercise', async () => {
+      globalThis.__TEST_MOCK_DATA__.config = { dayMode: 'odd-even', dayCount: 3, days: ['Odd', 'Even'] };
+      render(<App />);
+      const day = getDayForDate(new Date(), 'odd-even', ['Odd', 'Even']);
+      const workout = getDayWorkout('odd-even', day);
+      await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+      fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+      await screen.findByText('All workouts');
+      fireEvent.change(screen.getByLabelText('Day mode'), { target: { value: 'numbered' } });
+      expect(screen.getByText('50/10/10/10')).toBeInTheDocument();
+    });
+
+    it('shows the last saved weight/rep for each exercise', async () => {
+      render(<App />);
+      const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+      const workout = getDayWorkout(CONFIG.dayMode, day);
+      await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+      fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
+      fireEvent.change(screen.getByLabelText('Set 1 reps'), { target: { value: '10' } });
+      fireEvent.change(screen.getByLabelText('Set 2 weight'), { target: { value: '45' } });
+      fireEvent.change(screen.getByLabelText('Set 2 reps'), { target: { value: '12' } });
+      fireEvent.change(screen.getByLabelText('Set 3 weight'), { target: { value: '40' } });
+      fireEvent.change(screen.getByLabelText('Set 3 reps'), { target: { value: '15' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+      await screen.findByText('All workouts');
+      expect(screen.getByText('50/10/45/12/40/15')).toBeInTheDocument();
+    });
+
     it('saves the day mode and applies it to the workout screen', async () => {
       await openSettings();
       fireEvent.change(screen.getByLabelText('Day mode'), { target: { value: 'odd-even' } });

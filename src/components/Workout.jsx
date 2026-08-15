@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { apiFetch } from '../utils/api'
+import { loadDayEntries, persistDayEntries, clearDayEntries } from '../utils/entries'
 
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise`)}`
@@ -15,37 +16,6 @@ const isImageUrl = (url) => {
     return IMAGE_EXTENSIONS.includes(ext)
   } catch {
     return false
-  }
-}
-
-const ENTRIES_STORAGE = 'exercise-entries'
-
-const loadDayEntries = (day) => {
-  try {
-    const all = JSON.parse(localStorage.getItem(ENTRIES_STORAGE) || '{}')
-    return all[day] || {}
-  } catch {
-    return {}
-  }
-}
-
-const persistDayEntries = (day, entries) => {
-  try {
-    const all = JSON.parse(localStorage.getItem(ENTRIES_STORAGE) || '{}')
-    all[day] = entries
-    localStorage.setItem(ENTRIES_STORAGE, JSON.stringify(all))
-  } catch {
-    // storage unavailable — keep entries in memory only
-  }
-}
-
-const clearDayEntries = (day) => {
-  try {
-    const all = JSON.parse(localStorage.getItem(ENTRIES_STORAGE) || '{}')
-    delete all[day]
-    localStorage.setItem(ENTRIES_STORAGE, JSON.stringify(all))
-  } catch {
-    // storage unavailable
   }
 }
 
