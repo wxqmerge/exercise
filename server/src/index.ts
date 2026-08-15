@@ -107,6 +107,15 @@ if (!fs.existsSync(IMAGE_DIR)) {
   fs.mkdirSync(IMAGE_DIR, { recursive: true });
 }
 
+const IMAGE_EXT_BY_TYPE: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/bmp': 'bmp',
+};
+const IMAGE_URL_EXTS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']);
+
 app.get('/api/images', (_req, res) => {
   const images: Record<string, string> = {};
   for (const file of fs.readdirSync(IMAGE_DIR)) {
@@ -116,6 +125,58 @@ app.get('/api/images', (_req, res) => {
     images[id] = `/api/images/${encodeURIComponent(file)}`;
   }
   res.json(images);
+});
+
+app.post('/api/images/save', async (req, res) => {
+  const { exerciseId, url } = req.body || {};
+  if (typeof exerciseId !== 'string' || !/^[a-z0-9-]+$/.test(exerciseId)) {
+    res.status(400).json({ success: false, error: { message: 'Invalid exercise id' } });
+    return;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(String(url || ''));
+  } catch {
+    res.status(400).json({ success: false, error: { message: 'Invalid URL' } });
+    return;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    res.status(400).json({ success: false, error: { message: 'Only http/https URLs are allowed' } });
+    return;
+  }
+  try {
+    const resp = await fetch(parsed, { signal: AbortSignal.timeout(15000) });
+    if (!resp.ok) {
+      res.status(502).json({ success: false, error: { message: `Download failed (HTTP ${resp.status})` } });
+      return;
+    }
+    const buffer = Buffer.from(await resp.arrayBuffer());
+    if (buffer.length > 10 * 1024 * 1024) {
+      res.status(413).json({ success: false, error: { message: 'Image too large (max 10 MB)' } });
+      return;
+    }
+    const contentType = (resp.headers.get('content-type') || '').split(';')[0].trim();
+    const urlExt = parsed.pathname.split('.').pop()?.toLowerCase() || '';
+    const ext = IMAGE_EXT_BY_TYPE[contentType] || (IMAGE_URL_EXTS.has(urlExt) ? urlExt : 'jpg');
+    const file = `${exerciseId}.${ext}`;
+    fs.writeFileSync(path.join(IMAGE_DIR, file), buffer);
+    res.json({ success: true, url: `/api/images/${encodeURIComponent(file)}` });
+  } catch {
+    res.status(502).json({ success: false, error: { message: 'Download failed' } });
+  }
+});
+
+app.delete('/api/images/:file', (req, res) => {
+  const file = req.params.file;
+  if (!/^[\w][\w.-]*$/.test(file) || file.includes('..')) {
+    res.status(400).json({ success: false, error: { message: 'Invalid file name' } });
+    return;
+  }
+  const target = path.join(IMAGE_DIR, file);
+  if (fs.existsSync(target) && fs.statSync(target).isFile()) {
+    fs.unlinkSync(target);
+  }
+  res.json({ success: true });
 });
 
 app.use('/api/images', express.static(IMAGE_DIR));

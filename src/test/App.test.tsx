@@ -58,7 +58,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByAltText(workout[0].name);
     fireEvent.click(screen.getByRole('button', { name: 'Remove image' }));
-    expect(screen.getByRole('link', { name: /no image/i })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /no image/i })).toBeInTheDocument();
   });
 
   it('falls back to the paste box when the image fails to load', async () => {
@@ -72,7 +72,7 @@ describe('App', () => {
     expect(input).toHaveValue('https://example.com/broken.jpg');
   });
 
-  it('saves a pasted image URL and shows the image', async () => {
+  it('downloads and saves the image to the app', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
     const workout = getDayWorkout(CONFIG.dayMode, day);
@@ -82,7 +82,33 @@ describe('App', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     const img = await screen.findByAltText(workout[0].name);
-    expect(img).toHaveAttribute('src', 'https://example.com/squat.jpg');
+    expect(img).toHaveAttribute('src', `/api/images/${workout[0].id}.jpg`);
+  });
+
+  it('falls back to saving the link when the download fails', async () => {
+    globalThis.__TEST_MOCK_DATA__.imagesSaveResult = { ok: false };
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Image URL'), {
+      target: { value: 'https://example.com/squat.jpg' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText(/saved link only/i)).toBeInTheDocument();
+    expect(screen.getByAltText(workout[0].name)).toHaveAttribute('src', 'https://example.com/squat.jpg');
+  });
+
+  it('zooms the image to full screen on click', async () => {
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    globalThis.__TEST_MOCK_DATA__.images = { [workout[0].id]: '/api/images/test.jpg' };
+    render(<App />);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.click(screen.getByAltText(workout[0].name));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('moves to the next exercise when Next is clicked', async () => {

@@ -6,6 +6,7 @@ const DEFAULT_CONFIG = { dayMode: 'numbered', days: ['Day 1', 'Day 2', 'Day 3'] 
 const mockData = {
   config: { ...DEFAULT_CONFIG },
   images: {},
+  imagesSaveResult: { ok: true },
 };
 
 const createFetchMock = () => {
@@ -20,6 +21,34 @@ const createFetchMock = () => {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve(mockData.images),
+      });
+    }
+    if (typeof url === 'string' && url === '/api/images/save' && options?.method === 'POST') {
+      const body = JSON.parse(options.body);
+      const result = mockData.imagesSaveResult;
+      const savedUrl = `/api/images/${body.exerciseId}.jpg`;
+      if (result.ok) {
+        mockData.images = { ...mockData.images, [body.exerciseId]: savedUrl };
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, url: savedUrl }),
+        });
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 502,
+        json: () => Promise.resolve({ success: false, error: { message: 'Download failed' } }),
+      });
+    }
+    if (typeof url === 'string' && url.startsWith('/api/images/') && options?.method === 'DELETE') {
+      const file = decodeURIComponent(url.substring('/api/images/'.length));
+      const id = file.substring(0, file.lastIndexOf('.'));
+      const next = { ...mockData.images };
+      delete next[id];
+      mockData.images = next;
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true }),
       });
     }
     if (options?.method === 'PUT' || options?.method === 'DELETE' || options?.method === 'POST') {
@@ -42,6 +71,7 @@ beforeEach(() => {
   globalThis.fetch = createFetchMock();
   mockData.config = { ...DEFAULT_CONFIG };
   mockData.images = {};
+  mockData.imagesSaveResult = { ok: true };
   localStorage.clear();
 });
 

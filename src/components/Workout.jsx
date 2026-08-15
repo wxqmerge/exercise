@@ -14,7 +14,7 @@ const isImageUrl = (url) => {
   }
 }
 
-export default function Workout({ day, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage }) {
+export default function Workout({ day, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages }) {
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState({})
   const [reps, setReps] = useState('')
@@ -22,6 +22,8 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
   const [urlDraft, setUrlDraft] = useState('')
   const [imageError, setImageError] = useState(false)
   const [imageHint, setImageHint] = useState('')
+  const [zoomed, setZoomed] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const isLast = index === exercises.length - 1
   const finished = index >= exercises.length
@@ -34,6 +36,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
     setUrlDraft('')
     setImageError(false)
     setImageHint('')
+    setZoomed(false)
     setIndex(i => i + 1)
   }
 
@@ -48,6 +51,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
     setUrlDraft('')
     setImageError(false)
     setImageHint('')
+    setZoomed(false)
     setIndex(i => i - 1)
   }
 
@@ -58,6 +62,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
     setUrlDraft('')
     setImageError(false)
     setImageHint('')
+    setZoomed(false)
     setIndex(0)
   }
 
@@ -117,17 +122,47 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
 
   const exercise = exercises[index]
 
-  const saveImage = () => {
+  const saveImage = async () => {
     const trimmed = urlDraft.trim()
-    if (!trimmed || !onSetImage) return
+    if (!trimmed || !onSetImage || saving) return
     if (!isImageUrl(trimmed)) {
       setImageHint('Not an image link — use .jpg, .jpeg, .png, .gif or .webp')
       return
     }
-    onSetImage(exercise.id, trimmed)
+    setSaving(true)
+    try {
+      const res = await fetch('/api/images/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exerciseId: exercise.id, url: trimmed }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.url) {
+        await onRefetchImages()
+        setImageHint('')
+      } else {
+        onSetImage(exercise.id, trimmed)
+        setImageHint(`Saved link only — ${data?.error?.message || 'download failed'}`)
+      }
+    } catch {
+      onSetImage(exercise.id, trimmed)
+      setImageHint('Saved link only — server unreachable')
+    }
     setUrlDraft('')
     setImageError(false)
-    setImageHint('')
+    setSaving(false)
+  }
+
+  const removeImage = async () => {
+    const current = images[exercise.id]
+    if (!current) return
+    if (current.startsWith('/api/images/')) {
+      await fetch(current, { method: 'DELETE' }).catch(() => {})
+      await onRefetchImages()
+    } else if (overrides[exercise.id]) {
+      onRemoveImage(exercise.id)
+    }
+    setZoomed(false)
   }
 
   return (
@@ -143,23 +178,19 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
             <img
               src={images[exercise.id]}
               alt={exercise.name}
-              className="w-full h-48 object-cover rounded"
+              className="w-full aspect-[4/3] object-cover rounded cursor-zoom-in"
+              onClick={() => setZoomed(true)}
               onError={() => {
                 setImageError(true)
                 setUrlDraft(images[exercise.id] || '')
               }}
             />
-            {overrides[exercise.id] && (
-              <button
-                onClick={() => {
-                  onRemoveImage(exercise.id)
-                  setImageError(false)
-                }}
-                className="mt-2 text-xs text-gray-400 hover:text-red-500"
-              >
-                Remove image
-              </button>
-            )}
+            <button
+              onClick={removeImage}
+              className="mt-2 text-xs text-gray-400 hover:text-red-500"
+            >
+              Remove image
+            </button>
           </div>
         ) : (
           <div className="mt-4 rounded border-2 border-dashed border-gray-300 p-4 text-center">
@@ -185,14 +216,15 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
               />
               <button
                 onClick={saveImage}
-                className="px-3 py-2 bg-primary text-white rounded text-sm font-semibold hover:opacity-90"
+                disabled={saving}
+                className="px-3 py-2 bg-primary text-white rounded text-sm font-semibold hover:opacity-90 disabled:opacity-50"
               >
-                Save
+                {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
-            {imageHint && <p className="mt-2 text-xs text-red-500">{imageHint}</p>}
           </div>
         )}
+        {imageHint && <p className="mt-2 text-xs text-red-500">{imageHint}</p>}
 
         <div className="mt-6 grid grid-cols-2 gap-4">
           <label className="block">
@@ -239,6 +271,27 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
           </button>
         </div>
       </div>
+
+      {zoomed && (
+        <div
+          role="dialog"
+          aria-label={`${exercise.name} image`}
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setZoomed(false)}
+        >
+          <img
+            src={images[exercise.id]}
+            alt={exercise.name}
+            className="max-w-full max-h-full object-contain"
+          />
+          <button
+            onClick={() => setZoomed(false)}
+            className="absolute top-4 right-4 px-3 py-1 rounded bg-white/20 text-white text-sm hover:bg-white/30"
+          >
+            Close
+          </button>
+        </div>
+      )}
     </main>
   )
 }

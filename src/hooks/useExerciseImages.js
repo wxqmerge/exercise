@@ -12,7 +12,7 @@ function loadOverrides() {
 }
 
 export function useExerciseImages() {
-  const serverImages = useImages()
+  const { images: serverImages, refetch } = useImages()
   const [overrides, setOverrides] = useState(loadOverrides)
 
   useEffect(() => {
@@ -31,5 +31,5 @@ export function useExerciseImages() {
     })
   }
 
-  return { images: { ...serverImages, ...overrides }, overrides, setOverride, removeOverride }
+  return { images: { ...serverImages, ...overrides }, overrides, setOverride, removeOverride, refetch }
 }
