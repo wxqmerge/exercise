@@ -4,7 +4,7 @@ import { loadDayEntries, loadAllEntries, persistDayEntries, clearDayEntries } fr
 import { getDayWorkout } from '../data/exercises'
 
 const imageSearchUrl = (name) =>
-  `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise`)}&tbs=iftype:animated`
+  `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise gif`)}&tbs=iftype:animated`
 
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
 
