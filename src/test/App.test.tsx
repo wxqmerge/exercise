@@ -87,6 +87,7 @@ describe('App', () => {
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     const link = screen.getByRole('link', { name: /no image/i });
     expect(link).toHaveAttribute('href', expect.stringContaining('tbm=isch'));
+    expect(link).toHaveAttribute('href', expect.stringContaining('tbs=iftype:animated'));
     expect(link).toHaveAttribute('href', expect.stringContaining(encodeURIComponent(workout[0].name)));
   });
 
