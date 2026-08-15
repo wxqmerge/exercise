@@ -141,6 +141,28 @@ describe('App', () => {
     expect(screen.getByText(`${day} · Exercise 2 of ${workout.length}`)).toBeInTheDocument();
   });
 
+  it('exports a backup file', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/export');
+  });
+
+  it('imports a backup file', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    await screen.findByText(/Exercise 1 of/);
+    const backup = {
+      version: 1,
+      images: { 'test-exercise': { filename: 'test-exercise.jpg', mimeType: 'image/jpeg', data: 'aGVsbG8=' } },
+    };
+    const file = new File([JSON.stringify(backup)], 'backup.json', { type: 'application/json' });
+    fireEvent.change(screen.getByLabelText('Import backup'), { target: { files: [file] } });
+    expect(await screen.findByText(/imported 1 image/i)).toBeInTheDocument();
+  });
+
   it('goes back to the previous exercise with the left arrow', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);

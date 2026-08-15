@@ -75,7 +75,7 @@ app.use(helmet({
   },
 }));
 
-app.use(express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 app.get('/health', (_req: Request, res: Response) => {
@@ -115,6 +115,14 @@ const IMAGE_EXT_BY_TYPE: Record<string, string> = {
   'image/bmp': 'bmp',
 };
 const IMAGE_URL_EXTS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']);
+const MIME_BY_EXT: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  bmp: 'image/bmp',
+};
 
 app.get('/api/images', (_req, res) => {
   const images: Record<string, string> = {};
@@ -190,6 +198,56 @@ app.post('/api/images/upload', (req, res) => {
   const file = `${exerciseId}.${ext}`;
   fs.writeFileSync(path.join(IMAGE_DIR, file), buffer);
   res.json({ success: true, url: `/api/images/${encodeURIComponent(file)}` });
+});
+
+app.get('/api/export', (_req, res) => {
+  const images: Record<string, { filename: string; mimeType: string; data: string }> = {};
+  for (const file of fs.readdirSync(IMAGE_DIR)) {
+    const dot = file.lastIndexOf('.');
+    if (dot <= 0) continue;
+    const id = file.substring(0, dot);
+    const ext = file.substring(dot + 1).toLowerCase();
+    if (!IMAGE_URL_EXTS.has(ext)) continue;
+    images[id] = {
+      filename: file,
+      mimeType: MIME_BY_EXT[ext] || 'application/octet-stream',
+      data: fs.readFileSync(path.join(IMAGE_DIR, file)).toString('base64'),
+    };
+  }
+  const payload = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), images });
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="exercise-backup.json"');
+  res.send(payload);
+});
+
+app.post('/api/import', (req, res) => {
+  const body = req.body;
+  if (!body || typeof body !== 'object' || body.version !== 1 || !body.images || typeof body.images !== 'object') {
+    res.status(400).json({ success: false, error: { message: 'Invalid backup file' } });
+    return;
+  }
+  const imported: string[] = [];
+  const errors: string[] = [];
+  for (const [id, entry] of Object.entries(body.images as Record<string, any>)) {
+    if (!/^[a-z0-9-]+$/.test(id)) {
+      errors.push(`Invalid exercise id: ${id}`);
+      continue;
+    }
+    if (!entry || typeof entry.data !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(entry.data)) {
+      errors.push(`Bad image data for ${id}`);
+      continue;
+    }
+    const buffer = Buffer.from(entry.data, 'base64');
+    if (buffer.length === 0 || buffer.length > 10 * 1024 * 1024) {
+      errors.push(`Image too large: ${id}`);
+      continue;
+    }
+    const ext = typeof entry.filename === 'string' ? entry.filename.split('.').pop()?.toLowerCase() : undefined;
+    const safeExt = ext && IMAGE_URL_EXTS.has(ext) ? ext : 'jpg';
+    fs.writeFileSync(path.join(IMAGE_DIR, `${id}.${safeExt}`), buffer);
+    imported.push(id);
+  }
+  res.json({ success: true, imported, errors });
 });
 
 app.delete('/api/images/:file', (req, res) => {

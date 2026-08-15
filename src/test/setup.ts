@@ -40,6 +40,26 @@ const createFetchMock = () => {
         json: () => Promise.resolve({ success: false, error: { message: 'Download failed' } }),
       });
     }
+    if (typeof url === 'string' && url === '/api/export') {
+      return Promise.resolve({
+        ok: true,
+        blob: () => Promise.resolve(new Blob([JSON.stringify({ version: 1, images: {} })])),
+      });
+    }
+    if (typeof url === 'string' && url === '/api/import' && options?.method === 'POST') {
+      const body = JSON.parse(options.body);
+      if (body.version !== 1 || !body.images) {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ success: false, error: { message: 'Invalid backup file' } }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true, imported: Object.keys(body.images), errors: [] }),
+      });
+    }
     if (typeof url === 'string' && url === '/api/images/upload' && options?.method === 'POST') {
       const body = JSON.parse(options.body);
       const mime = (body.dataUrl.match(/^data:image\/(\w+);/) || [])[1] || 'jpg';

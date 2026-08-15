@@ -28,6 +28,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
   const [zoomed, setZoomed] = useState(false)
   const [saving, setSaving] = useState(false)
   const fileRef = useRef(null)
+  const backupRef = useRef(null)
 
   const isLast = index === exercises.length - 1
   const finished = index >= exercises.length
@@ -186,6 +187,63 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
       }
     } catch {
       setImageHint('Import failed — server unreachable')
+    }
+    setSaving(false)
+  }
+
+  const exportData = async () => {
+    if (saving) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/export')
+      if (!res.ok) {
+        setImageHint('Export failed')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'exercise-backup.json'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      setImageHint('Export failed — server unreachable')
+    }
+    setSaving(false)
+  }
+
+  const importBackup = async (file) => {
+    if (!file || saving) return
+    setSaving(true)
+    try {
+      const text = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsText(file)
+      })
+      const data = JSON.parse(text)
+      const res = await fetch('/api/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (res.ok && result.success) {
+        await onRefetchImages()
+        setImageHint(
+          result.errors?.length
+            ? `Imported ${result.imported.length} image(s) — ${result.errors.length} skipped`
+            : `Imported ${result.imported.length} image(s)`,
+        )
+      } else {
+        setImageHint(result?.error?.message || 'Import failed')
+      }
+    } catch {
+      setImageHint('Invalid backup file')
     }
     setSaving(false)
   }
@@ -349,6 +407,34 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
           </div>
         </div>
 
+        <div className="px-6 pb-6 flex items-center gap-2">
+          <span className="text-xs text-gray-400">Backup</span>
+          <button
+            onClick={exportData}
+            disabled={saving}
+            className="px-2 py-1 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Export
+          </button>
+          <button
+            onClick={() => backupRef.current?.click()}
+            disabled={saving}
+            className="px-2 py-1 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Import
+          </button>
+          <input
+            ref={backupRef}
+            type="file"
+            accept="application/json,.json"
+            aria-label="Import backup"
+            className="hidden"
+            onChange={e => {
+              importBackup(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
+        </div>
       </div>
 
       {zoomed && (
