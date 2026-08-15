@@ -342,7 +342,7 @@ describe('App', () => {
       expect(screen.getByText(/Day 2/)).toBeInTheDocument();
       expect(screen.getByText(/Day 3/)).toBeInTheDocument();
       expect(screen.getAllByText('Goblet Squat').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Weighted Marching').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Suitcase Carry').length).toBeGreaterThan(0);
     });
 
     it('shows 0/0/0/0/0/0 for exercises with no saved entry', async () => {
@@ -400,14 +400,14 @@ describe('App', () => {
 
     it('saves an exercise replacement and applies it to the workout screen', async () => {
       await openSettings();
-      fireEvent.change(screen.getByLabelText('Replace Goblet Squat on Day 1'), { target: { value: 'weighted-marching' } });
+      fireEvent.change(screen.getByLabelText('Replace Goblet Squat on Day 1'), { target: { value: 'suitcase-carry' } });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
       expect(await screen.findByText('Saved')).toBeInTheDocument();
-      expect(globalThis.__TEST_MOCK_DATA__.config.exerciseSwaps).toEqual({ 'Day 1': { 'goblet-squat': 'weighted-marching' } });
+      expect(globalThis.__TEST_MOCK_DATA__.config.exerciseSwaps).toEqual({ 'Day 1': { 'goblet-squat': 'suitcase-carry' } });
       fireEvent.click(screen.getByRole('button', { name: 'Back' }));
       fireEvent.change(screen.getByLabelText('Day'), { target: { value: 'Day 1' } });
       expect(await screen.findByText('Day 1 · Exercise 1 of 5')).toBeInTheDocument();
-      expect(screen.getByText('Weighted Marching')).toBeInTheDocument();
+      expect(screen.getByText('Suitcase Carry')).toBeInTheDocument();
       expect(screen.queryByText('Goblet Squat')).not.toBeInTheDocument();
     });
 
