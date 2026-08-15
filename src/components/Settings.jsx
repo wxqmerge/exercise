@@ -5,15 +5,8 @@ import { ODD_EVEN_WORKOUTS, NUMBERED_WORKOUTS } from '../data/exercises'
 
 const DAY_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-const formatEntry = (entry) => {
-  const parts = []
-  entry.reps.forEach((r, i) => {
-    const w = entry.weights[i] || ''
-    if (w) parts.push(w)
-    if (r) parts.push(r)
-  })
-  return parts.join('/')
-}
+const formatEntry = (entry) =>
+  entry.reps.map((r, i) => `${entry.weights[i] || 0}/${r || 0}`).join('/')
 
 const workoutsFor = (mode, count) => {
   if (mode === 'numbered') {

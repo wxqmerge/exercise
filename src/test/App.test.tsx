@@ -335,7 +335,7 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
       await screen.findByText('All workouts');
       fireEvent.change(screen.getByLabelText('Day mode'), { target: { value: 'numbered' } });
-      expect(screen.getByText('50/10/10/10')).toBeInTheDocument();
+      expect(screen.getByText('50/10/0/10/0/10')).toBeInTheDocument();
     });
 
     it('shows the last saved weight/rep for each exercise', async () => {
