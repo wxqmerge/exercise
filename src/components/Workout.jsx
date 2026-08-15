@@ -180,7 +180,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
             <img
               src={images[exercise.id]}
               alt={exercise.name}
-              className="mt-4 w-full h-[70vh] object-cover cursor-zoom-in"
+              className="mt-4 w-full h-[70vh] object-contain bg-gray-100 cursor-zoom-in"
               onClick={() => setZoomed(true)}
               onError={() => {
                 setImageError(true)
