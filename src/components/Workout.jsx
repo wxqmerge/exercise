@@ -9,6 +9,7 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
   const [reps, setReps] = useState('')
   const [weight, setWeight] = useState('')
   const [urlDraft, setUrlDraft] = useState('')
+  const [imageError, setImageError] = useState(false)
 
   const isLast = index === exercises.length - 1
   const finished = index >= exercises.length
@@ -19,6 +20,7 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
     setReps('')
     setWeight('')
     setUrlDraft('')
+    setImageError(false)
     setIndex(i => i + 1)
   }
 
@@ -31,6 +33,7 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
       setWeight(saved.weight)
     }
     setUrlDraft('')
+    setImageError(false)
     setIndex(i => i - 1)
   }
 
@@ -39,6 +42,7 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
     setReps('')
     setWeight('')
     setUrlDraft('')
+    setImageError(false)
     setIndex(0)
   }
 
@@ -103,6 +107,7 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
     if (trimmed && onSetImage) {
       onSetImage(exercise.id, trimmed)
       setUrlDraft('')
+      setImageError(false)
     }
   }
 
@@ -114,11 +119,15 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
         </p>
         <h1 className="mt-1 text-2xl font-bold text-primary">{exercise.name}</h1>
 
-        {images[exercise.id] ? (
+        {images[exercise.id] && !imageError ? (
           <img
             src={images[exercise.id]}
             alt={exercise.name}
             className="mt-4 w-full h-48 object-cover rounded"
+            onError={() => {
+              setImageError(true)
+              setUrlDraft(images[exercise.id] || '')
+            }}
           />
         ) : (
           <div className="mt-4 rounded border-2 border-dashed border-gray-300 p-4 text-center">

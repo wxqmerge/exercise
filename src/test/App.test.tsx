@@ -34,6 +34,17 @@ describe('App', () => {
     expect(link).toHaveAttribute('href', expect.stringContaining(encodeURIComponent(workout[0].name)));
   });
 
+  it('falls back to the paste box when the image fails to load', async () => {
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    globalThis.__TEST_MOCK_DATA__.images = { [workout[0].id]: 'https://example.com/broken.jpg' };
+    render(<App />);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.error(screen.getByAltText(workout[0].name));
+    const input = screen.getByLabelText('Image URL');
+    expect(input).toHaveValue('https://example.com/broken.jpg');
+  });
+
   it('saves a pasted image URL and shows the image', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
