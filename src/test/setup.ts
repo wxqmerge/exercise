@@ -40,6 +40,17 @@ const createFetchMock = () => {
         json: () => Promise.resolve({ success: false, error: { message: 'Download failed' } }),
       });
     }
+    if (typeof url === 'string' && url === '/api/images/upload' && options?.method === 'POST') {
+      const body = JSON.parse(options.body);
+      const mime = (body.dataUrl.match(/^data:image\/(\w+);/) || [])[1] || 'jpg';
+      const ext = mime === 'jpeg' ? 'jpg' : mime;
+      const savedUrl = `/api/images/${body.exerciseId}.${ext}`;
+      mockData.images = { ...mockData.images, [body.exerciseId]: savedUrl };
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true, url: savedUrl }),
+      });
+    }
     if (typeof url === 'string' && url.startsWith('/api/images/') && options?.method === 'DELETE') {
       const file = decodeURIComponent(url.substring('/api/images/'.length));
       const id = file.substring(0, file.lastIndexOf('.'));

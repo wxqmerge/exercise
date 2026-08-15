@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise`)}`
 
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+
+const joinValues = (values) =>
+  Array.isArray(values) ? values.filter(v => v !== '').join(' / ') || '—' : '—'
 
 const isImageUrl = (url) => {
   try {
@@ -18,21 +21,22 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState({})
   const [reps, setReps] = useState(['10', '10', '10'])
-  const [weight, setWeight] = useState('')
+  const [weights, setWeights] = useState(['', '', ''])
   const [urlDraft, setUrlDraft] = useState('')
   const [imageError, setImageError] = useState(false)
   const [imageHint, setImageHint] = useState('')
   const [zoomed, setZoomed] = useState(false)
   const [saving, setSaving] = useState(false)
+  const fileRef = useRef(null)
 
   const isLast = index === exercises.length - 1
   const finished = index >= exercises.length
 
   const saveAndNext = () => {
     const exercise = exercises[index]
-    setEntries(prev => ({ ...prev, [exercise.id]: { reps: [...reps], weight } }))
+    setEntries(prev => ({ ...prev, [exercise.id]: { reps: [...reps], weights: [...weights] } }))
     setReps(['10', '10', '10'])
-    setWeight('')
+    setWeights(['', '', ''])
     setUrlDraft('')
     setImageError(false)
     setImageHint('')
@@ -46,7 +50,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
     const saved = entries[prev.id]
     if (saved) {
       setReps([...saved.reps])
-      setWeight(saved.weight)
+      setWeights([...saved.weights])
     }
     setUrlDraft('')
     setImageError(false)
@@ -58,7 +62,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
   const restart = () => {
     setEntries({})
     setReps(['10', '10', '10'])
-    setWeight('')
+    setWeights(['', '', ''])
     setUrlDraft('')
     setImageError(false)
     setImageHint('')
@@ -80,8 +84,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
   if (finished) {
     const totalVolume = Object.values(entries).reduce(
       (sum, e) =>
-        sum +
-        e.reps.reduce((s, r) => s + (Number(r) || 0), 0) * (Number(e.weight) || 0),
+        sum + e.reps.reduce((s, r, i) => s + (Number(r) || 0) * (Number(e.weights[i]) || 0), 0),
       0,
     )
     return (
@@ -103,8 +106,8 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
                 return (
                   <tr key={ex.id} className="border-b last:border-0">
                     <td className="py-2">{ex.name}</td>
-                    <td className="py-2 text-right">{e?.reps ? e.reps.join(' / ') : '—'}</td>
-                    <td className="py-2 text-right">{e?.weight || '—'}</td>
+                    <td className="py-2 text-right">{joinValues(e?.reps)}</td>
+                    <td className="py-2 text-right">{joinValues(e?.weights)}</td>
                   </tr>
                 )
               })}
@@ -155,6 +158,38 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
     setSaving(false)
   }
 
+  const importFile = async (file) => {
+    if (!file || saving) return
+    if (file.size > 10 * 1024 * 1024) {
+      setImageHint('Image too large (max 10 MB)')
+      return
+    }
+    setSaving(true)
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/images/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exerciseId: exercise.id, dataUrl }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.url) {
+        await onRefetchImages()
+        setImageHint('')
+      } else {
+        setImageHint(data?.error?.message || 'Import failed')
+      }
+    } catch {
+      setImageHint('Import failed — server unreachable')
+    }
+    setSaving(false)
+  }
+
   const removeImage = async () => {
     const current = images[exercise.id]
     if (!current) return
@@ -192,12 +227,19 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
                 setUrlDraft(images[exercise.id] || '')
               }}
             />
-            <div className="px-4 py-2">
+            <div className="px-4 py-2 flex gap-3">
               <button
                 onClick={removeImage}
                 className="text-xs text-gray-400 hover:text-red-500"
               >
                 Remove image
+              </button>
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={saving}
+                className="text-xs text-gray-400 hover:text-primary disabled:opacity-50"
+              >
+                Import
               </button>
             </div>
           </div>
@@ -230,45 +272,63 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
               >
                 {saving ? 'Saving…' : 'Save'}
               </button>
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={saving}
+                className="px-2 py-1 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Import
+              </button>
             </div>
           </div>
         )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          aria-label="Import image"
+          className="hidden"
+          onChange={e => {
+            importFile(e.target.files?.[0])
+            e.target.value = ''
+          }}
+        />
         {imageHint && <p className="px-4 pb-2 text-xs text-red-500">{imageHint}</p>}
 
-        <div className="px-6 pb-2 grid grid-cols-2 gap-4">
-          <div>
+        <div className="px-6 pb-2">
+          <div className="grid grid-cols-[3rem_1fr_1fr] gap-2">
+            <span />
             <span className="text-sm text-gray-600">Reps</span>
-            <div className="mt-1 space-y-2">
-              {reps.map((r, i) => (
-                <label key={i} className="flex items-center gap-2">
-                  <span className="w-10 shrink-0 text-sm text-gray-500">Set {i + 1}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    inputMode="numeric"
-                    value={r}
-                    onChange={e => setReps(prev => prev.map((p, j) => (j === i ? e.target.value : p)))}
-                    aria-label={`Set ${i + 1} reps`}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                    placeholder="0"
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
-          <label className="block">
             <span className="text-sm text-gray-600">Weight</span>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              inputMode="decimal"
-              value={weight}
-              onChange={e => setWeight(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded px-3 py-2"
-              placeholder="0"
-            />
-          </label>
+          </div>
+          <div className="mt-1 space-y-2">
+            {reps.map((r, i) => (
+              <div key={i} className="grid grid-cols-[3rem_1fr_1fr] gap-2 items-center">
+                <span className="text-sm text-gray-500">Set {i + 1}</span>
+                <input
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  value={r}
+                  onChange={e => setReps(prev => prev.map((p, j) => (j === i ? e.target.value : p)))}
+                  aria-label={`Set ${i + 1} reps`}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  placeholder="0"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  inputMode="decimal"
+                  value={weights[i]}
+                  onChange={e => setWeights(prev => prev.map((p, j) => (j === i ? e.target.value : p)))}
+                  aria-label={`Set ${i + 1} weight`}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  placeholder="0"
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="px-6 pb-6 flex gap-3">

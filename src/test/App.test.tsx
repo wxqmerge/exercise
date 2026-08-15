@@ -93,6 +93,17 @@ describe('App', () => {
     expect(img).toHaveAttribute('src', `/api/images/${workout[0].id}.jpg`);
   });
 
+  it('imports a local image file', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    const file = new File(['fakeimagebytes'], 'photo.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByLabelText('Import image'), { target: { files: [file] } });
+    const img = await screen.findByAltText(workout[0].name);
+    expect(img).toHaveAttribute('src', `/api/images/${workout[0].id}.jpg`);
+  });
+
   it('falls back to saving the link when the download fails', async () => {
     globalThis.__TEST_MOCK_DATA__.imagesSaveResult = { ok: false };
     render(<App />);
@@ -125,7 +136,7 @@ describe('App', () => {
     const workout = getDayWorkout(CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Set 1 reps'), { target: { value: '10' } });
-    fireEvent.change(screen.getByLabelText('Weight'), { target: { value: '50' } });
+    fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByText(`${day} · Exercise 2 of ${workout.length}`)).toBeInTheDocument();
   });
@@ -136,11 +147,12 @@ describe('App', () => {
     const workout = getDayWorkout(CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     for (let i = 0; i < workout.length; i++) {
-      fireEvent.change(screen.getByLabelText('Weight'), { target: { value: '50' } });
+      fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
       fireEvent.click(screen.getByRole('button', { name: i === workout.length - 1 ? 'Finish' : 'Next' }));
     }
     expect(screen.getByText('Workout complete')).toBeInTheDocument();
     expect(screen.getAllByText('10 / 10 / 10').length).toBe(workout.length);
-    expect(screen.getByText(`Total volume: ${workout.length * 1500}`)).toBeInTheDocument();
+    expect(screen.getAllByText('50').length).toBe(workout.length);
+    expect(screen.getByText(`Total volume: ${workout.length * 500}`)).toBeInTheDocument();
   });
 });

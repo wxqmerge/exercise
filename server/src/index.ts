@@ -75,7 +75,7 @@ app.use(helmet({
   },
 }));
 
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 app.get('/health', (_req: Request, res: Response) => {
@@ -164,6 +164,32 @@ app.post('/api/images/save', async (req, res) => {
   } catch {
     res.status(502).json({ success: false, error: { message: 'Download failed' } });
   }
+});
+
+app.post('/api/images/upload', (req, res) => {
+  const { exerciseId, dataUrl } = req.body || {};
+  if (typeof exerciseId !== 'string' || !/^[a-z0-9-]+$/.test(exerciseId)) {
+    res.status(400).json({ success: false, error: { message: 'Invalid exercise id' } });
+    return;
+  }
+  if (typeof dataUrl !== 'string') {
+    res.status(400).json({ success: false, error: { message: 'Missing image data' } });
+    return;
+  }
+  const match = /^data:image\/(jpeg|png|gif|webp|bmp);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!match) {
+    res.status(400).json({ success: false, error: { message: 'Unsupported image type' } });
+    return;
+  }
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length === 0 || buffer.length > 10 * 1024 * 1024) {
+    res.status(413).json({ success: false, error: { message: 'Image too large (max 10 MB)' } });
+    return;
+  }
+  const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+  const file = `${exerciseId}.${ext}`;
+  fs.writeFileSync(path.join(IMAGE_DIR, file), buffer);
+  res.json({ success: true, url: `/api/images/${encodeURIComponent(file)}` });
 });
 
 app.delete('/api/images/:file', (req, res) => {
