@@ -9,6 +9,14 @@ export const loadDayEntries = (day) => {
   }
 }
 
+export const loadAllEntries = () => {
+  try {
+    return JSON.parse(localStorage.getItem(ENTRIES_STORAGE) || '{}')
+  } catch {
+    return {}
+  }
+}
+
 export const persistDayEntries = (day, entries) => {
   try {
     const all = JSON.parse(localStorage.getItem(ENTRIES_STORAGE) || '{}')

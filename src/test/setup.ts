@@ -151,6 +151,8 @@ beforeEach(() => {
   mockData.keyRequired = true;
   mockData.images = {};
   mockData.imagesSaveResult = { ok: true };
+  URL.createObjectURL = vi.fn(() => 'blob:http://test.com/mock');
+  URL.revokeObjectURL = vi.fn();
   localStorage.clear();
   localStorage.setItem('exercise-key', 'test-key');
 });
@@ -172,9 +174,6 @@ Object.defineProperty(navigator, 'clipboard', {
   },
   writable: true,
 });
-
-URL.createObjectURL = vi.fn(() => 'blob:http://test.com/mock');
-URL.revokeObjectURL = vi.fn();
 
 Object.defineProperty(window, 'IntersectionObserver', {
   writable: true,

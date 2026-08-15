@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import App from '../App.jsx';
 import { getDayWorkout } from '../data/exercises';
 import { getDayForDate } from '../utils/day';
@@ -196,6 +196,9 @@ describe('App', () => {
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
     expect((globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.some(c => c[0] === '/api/export')).toBe(true);
+    await vi.waitFor(() =>
+      expect((URL.createObjectURL as unknown as { mock: { calls: unknown[][] } }).mock.calls).toHaveLength(1),
+    );
   });
 
   it('imports a backup file', async () => {
@@ -283,6 +286,22 @@ describe('App', () => {
     expect(screen.getByText(`Total volume: ${workout.length * 500}`)).toBeInTheDocument();
   });
 
+  it('downloads the workout as a .tab file', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }));
+    await vi.waitFor(() =>
+      expect((URL.createObjectURL as unknown as { mock: { calls: unknown[][] } }).mock.calls).toHaveLength(1),
+    );
+    const text = await ((URL.createObjectURL as unknown as { mock: { calls: unknown[][] } }).mock.calls[0][0] as Blob).text();
+    expect(text.split('\n')[0]).toBe('Day\tExercise\tSet 1\tSet 2\tSet 3');
+    expect(text).toContain(`${day}\t${workout[0].name}\t50/10\t0/10\t0/10`);
+  });
+
   describe('Settings', () => {
     const openSettings = async () => {
       render(<App />);
@@ -306,6 +325,12 @@ describe('App', () => {
       expect(screen.getByText(/Day 3/)).toBeInTheDocument();
       expect(screen.getByText('Goblet Squat')).toBeInTheDocument();
       expect(screen.getByText('Weighted Marching')).toBeInTheDocument();
+    });
+
+    it('shows 0/0/0/0/0/0 for exercises with no saved entry', async () => {
+      await openSettings();
+      const total = 5 + 5 + 5;
+      expect(screen.getAllByText('0/0/0/0/0/0').length).toBe(total);
     });
 
     it('shows the odd/even workouts when that mode is selected', async () => {

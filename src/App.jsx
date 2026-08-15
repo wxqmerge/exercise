@@ -67,6 +67,7 @@ function WorkoutApp({ onKeyCleared }) {
     <Workout
       day={day}
       days={config.days}
+      dayMode={config.dayMode}
       onDayChange={setSelectedDay}
       exercises={getDayWorkout(config.dayMode, day)}
       images={images}

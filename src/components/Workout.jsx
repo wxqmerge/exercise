@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { apiFetch } from '../utils/api'
-import { loadDayEntries, persistDayEntries, clearDayEntries } from '../utils/entries'
+import { loadDayEntries, loadAllEntries, persistDayEntries, clearDayEntries } from '../utils/entries'
+import { getDayWorkout } from '../data/exercises'
 
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise`)}`
@@ -19,7 +20,7 @@ const isImageUrl = (url) => {
   }
 }
 
-export default function Workout({ day, days = [], onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
+export default function Workout({ day, days = [], dayMode = 'numbered', onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState(() => loadDayEntries(day))
   const [reps, setReps] = useState(['10', '10', '10'])
@@ -258,6 +259,33 @@ export default function Workout({ day, days = [], onDayChange, exercises, images
     setSaving(false)
   }
 
+  const downloadWorkout = () => {
+    const all = loadAllEntries()
+    const lines = [['Day', 'Exercise', 'Set 1', 'Set 2', 'Set 3']]
+    for (const d of days) {
+      const dayEntries = all[d] || {}
+      for (const ex of getDayWorkout(dayMode, d)) {
+        const e = dayEntries[ex.id]
+        lines.push([
+          d,
+          ex.name,
+          ...[0, 1, 2].map(i => `${e?.weights[i] || 0}/${e?.reps[i] || 0}`),
+        ])
+      }
+    }
+    const blob = new Blob([lines.map(l => l.join('\t')).join('\n')], {
+      type: 'text/tab-separated-values',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'workout.tab'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
   const importBackup = async (file) => {
     if (!file || saving) return
     setSaving(true)
@@ -481,6 +509,13 @@ export default function Workout({ day, days = [], onDayChange, exercises, images
               e.target.value = ''
             }}
           />
+          <span className="text-xs text-gray-400">Workout</span>
+          <button
+            onClick={downloadWorkout}
+            className="px-2 py-1 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-50"
+          >
+            Download
+          </button>
           <button
             onClick={onOpenSettings}
             className="px-2 py-1 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-50"

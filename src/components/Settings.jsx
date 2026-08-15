@@ -6,7 +6,7 @@ import { ODD_EVEN_WORKOUTS, NUMBERED_WORKOUTS } from '../data/exercises'
 const DAY_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 const formatEntry = (entry) =>
-  entry.reps.map((r, i) => `${entry.weights[i] || 0}/${r || 0}`).join('/')
+  (entry?.reps || [0, 0, 0]).map((r, i) => `${entry?.weights?.[i] || 0}/${r || 0}`).join('/')
 
 const workoutsFor = (mode, count) => {
   if (mode === 'numbered') {
@@ -129,12 +129,10 @@ export default function Settings({ config, onSaved, onBack }) {
                             key={ex.id}
                             className="flex items-baseline justify-between gap-2 text-sm"
                           >
-                            <span className="text-gray-600">{ex.name}</span>
-                            {entry && (
-                              <span className="text-gray-400 tabular-nums whitespace-nowrap">
-                                {formatEntry(entry)}
-                              </span>
-                            )}
+                          <span className="text-gray-600">{ex.name}</span>
+                          <span className="text-gray-400 tabular-nums whitespace-nowrap">
+                            {formatEntry(entry)}
+                          </span>
                           </li>
                         )
                       })}
