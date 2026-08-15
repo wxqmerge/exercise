@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -8,10 +9,22 @@ from PIL import Image
 
 REPO = Path(__file__).resolve().parent.parent
 IMAGES = REPO / "data" / "images"
-OUT = REPO / "routine.html"
+OUT_DIR = REPO / "static"
 MAX_DIM = 512
 WHITE_T = 245
 MAX_FRAMES = 12
+
+BASE_CSS = [
+    "*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#f6f7f9;color:#1c2430;line-height:1.5}",
+    "header{background:#fff;border-bottom:1px solid #e3e7ec;padding:20px 16px 16px;max-width:720px;margin:0 auto}",
+    "header h1{margin:0 0 6px;font-size:1.4rem}header p{margin:0;color:#5a6675;font-size:.92rem}",
+    "main{max-width:720px;margin:0 auto;padding:8px 16px 48px}",
+    "section{margin-top:28px}h2{font-size:1.15rem;margin:0 0 12px;padding:8px 12px;background:#1c2430;color:#fff;border-radius:10px}",
+    "article{background:#fff;border:1px solid #e3e7ec;border-radius:12px;overflow:hidden;margin-bottom:14px}",
+    "article img{display:block;width:100%;max-height:340px;object-fit:contain;background:#fff}",
+    ".body{padding:12px 14px 14px}h3{margin:0 0 6px;font-size:1.02rem}p{margin:0;color:#45505f;font-size:.93rem}",
+    ".noimg{display:flex;align-items:center;justify-content:center;height:160px;color:#9aa5b1;font-size:.95rem;background:#fafbfc}",
+]
 
 
 def load_program():
@@ -29,6 +42,41 @@ def load_program():
     numbered = json.loads(res.stdout)
     return [(f"Day {k}", [(e["id"], e["name"], e["description"]) for e in numbered[k]])
             for k in sorted(numbered, key=lambda x: int(x))]
+
+
+def slugify(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def load_hotel():
+    days = []
+    current = None
+    for line in (REPO / "hotel.md").read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^## (Day \d+):\s*(.*)$", line)
+        if m:
+            current = [f"{m.group(1)} · {m.group(2)}", []]
+            days.append(current)
+            continue
+        m = re.match(r"^- \*\*(.+?):\*\*\s*(.*)$", line)
+        if m and current is not None:
+            current[1].append((slugify(m.group(1)), m.group(1), m.group(2)))
+    return days
+
+
+ROUTINES = [
+    {
+        "slug": "dumbbells",
+        "title": "Dumbbells",
+        "note": "Do each exercise once to find your working weight and reps, then repeat the same loads each session.",
+        "days": load_program(),
+    },
+    {
+        "slug": "hotel",
+        "title": "Hotel",
+        "note": "",
+        "days": load_hotel(),
+    },
+]
 
 
 def to_rgb(img: Image.Image) -> Image.Image:
@@ -109,50 +157,52 @@ def b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("ascii")
 
 
-def main() -> None:
-    days = load_program()
-    processed = REPO / "tmp" / "processed"
-    processed.mkdir(parents=True, exist_ok=True)
-    files = {p.stem: p for p in IMAGES.iterdir() if p.suffix.lower() in (".gif", ".jpg", ".jpeg", ".webp", ".png")}
-    report = []
-    chosen = {}
-    for day, exercises in days:
-        for ex_id, _, _ in exercises:
-            src = files.get(ex_id)
-            if src is None:
-                report.append(f"{ex_id:36s} {'(no image)':32s}")
-                continue
-            dst = processed / src.name
-            if src.suffix.lower() == ".gif":
-                process_gif(src, dst)
-            else:
-                process_static(src, dst)
-            # safety: never use a processed file bigger than the original
-            pick = dst if dst.stat().st_size < src.stat().st_size else src
-            chosen[ex_id] = pick
-            report.append(f"{ex_id:36s} {src.name:32s} {src.stat().st_size/1024:8.0f} KB -> {pick.stat().st_size/1024:8.0f} KB {'(processed)' if pick is dst else '(original)'}")
-    print("\n".join(report))
+def page_css():
+    return "\n".join(BASE_CSS)
 
+
+def build_index() -> str:
+    cards = []
+    for r in ROUTINES:
+        total = sum(len(ex) for _, ex in r["days"])
+        cards.append(
+            f'<a class="card" href="{r["slug"]}.html">'
+            f'<h2>{r["title"]}</h2>'
+            f'<p>{len(r["days"])} days · {total} exercises</p></a>'
+        )
+    return "\n".join([
+        "<!doctype html>",
+        '<html lang="en"><head><meta charset="utf-8">',
+        '<meta name="viewport" content="width=device-width, initial-scale=1">',
+        "<title>Workouts</title>",
+        "<style>",
+        *BASE_CSS,
+        "main{padding-top:28px}.card{display:block;background:#fff;border:1px solid #e3e7ec;border-radius:12px;padding:16px;margin-bottom:14px;text-decoration:none;color:inherit}",
+        ".card h2{margin:0 0 4px;font-size:1.2rem}.card p{margin:0;color:#5a6675;font-size:.92rem}",
+        ".card:hover{border-color:#1c2430}",
+        "</style></head><body>",
+        "<header><h1>Workouts</h1><p>Pick a routine.</p></header>",
+        "<main>",
+        *cards,
+        "</main></body></html>",
+    ])
+
+
+def build_page(routine, files, chosen) -> str:
     parts = [
         "<!doctype html>",
         '<html lang="en"><head><meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
-        "<title>Workout Routine</title>",
+        f"<title>{routine['title']}</title>",
         "<style>",
-        "*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#f6f7f9;color:#1c2430;line-height:1.5}",
-        "header{background:#fff;border-bottom:1px solid #e3e7ec;padding:20px 16px 16px;max-width:720px;margin:0 auto}",
-        "header h1{margin:0 0 6px;font-size:1.4rem}header p{margin:0;color:#5a6675;font-size:.92rem}",
-        "main{max-width:720px;margin:0 auto;padding:8px 16px 48px}",
-        "section{margin-top:28px}h2{font-size:1.15rem;margin:0 0 12px;padding:8px 12px;background:#1c2430;color:#fff;border-radius:10px}",
-        "article{background:#fff;border:1px solid #e3e7ec;border-radius:12px;overflow:hidden;margin-bottom:14px}",
-        "article img{display:block;width:100%;max-height:340px;object-fit:contain;background:#fff}",
-        ".body{padding:12px 14px 14px}h3{margin:0 0 6px;font-size:1.02rem}p{margin:0;color:#45505f;font-size:.93rem}",
-        ".noimg{display:flex;align-items:center;justify-content:center;height:160px;color:#9aa5b1;font-size:.95rem;background:#fafbfc}",
+        page_css(),
         "</style></head><body>",
-        "<header><h1>Workout Routine</h1><p>Do each exercise once to find your working weight and reps, then repeat the same loads each session.</p></header>",
+        "<header><h1>" + routine["title"] + "</h1>"
+        + (f"<p>{routine['note']}</p>" if routine["note"] else "")
+        + "</header>",
         "<main>",
     ]
-    for day, exercises in days:
+    for day, exercises in routine["days"]:
         parts.append(f"<section><h2>{day}</h2>")
         for ex_id, name, desc in exercises:
             if ex_id in chosen:
@@ -169,8 +219,39 @@ def main() -> None:
             )
         parts.append("</section>")
     parts.append("</main></body></html>")
-    OUT.write_text("\n".join(parts), encoding="utf-8")
-    print(f"\n{OUT}  {OUT.stat().st_size/1024/1024:.2f} MB")
+    return "\n".join(parts)
+
+
+def main() -> None:
+    processed = REPO / "tmp" / "processed"
+    processed.mkdir(parents=True, exist_ok=True)
+    files = {p.stem: p for p in IMAGES.iterdir() if p.suffix.lower() in (".gif", ".jpg", ".jpeg", ".webp", ".png")}
+    report = []
+    chosen = {}
+    for r in ROUTINES:
+        for day, exercises in r["days"]:
+            for ex_id, _, _ in exercises:
+                src = files.get(ex_id)
+                if src is None:
+                    report.append(f"{ex_id:36s} {'(no image)':32s}")
+                    continue
+                dst = processed / src.name
+                if src.suffix.lower() == ".gif":
+                    process_gif(src, dst)
+                else:
+                    process_static(src, dst)
+                # safety: never use a processed file bigger than the original
+                pick = dst if dst.stat().st_size < src.stat().st_size else src
+                chosen[ex_id] = pick
+                report.append(f"{ex_id:36s} {src.name:32s} {src.stat().st_size/1024:8.0f} KB -> {pick.stat().st_size/1024:8.0f} KB {'(processed)' if pick is dst else '(original)'}")
+    print("\n".join(report))
+
+    OUT_DIR.mkdir(exist_ok=True)
+    (OUT_DIR / "index.html").write_text(build_index(), encoding="utf-8")
+    for r in ROUTINES:
+        out = OUT_DIR / f"{r['slug']}.html"
+        out.write_text(build_page(r, files, chosen), encoding="utf-8")
+        print(f"{out}  {out.stat().st_size/1024/1024:.2f} MB")
 
 
 if __name__ == "__main__":

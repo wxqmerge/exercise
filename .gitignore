@@ -55,8 +55,8 @@ data/*
 data/images/*
 !data/images/.gitkeep
 
-# Generated static routine page (rebuild with scripts/build-static.py)
-routine.html
+# Generated static app (rebuild with scripts/build-static.py)
+static/
 
 # Temp
 tmp/
