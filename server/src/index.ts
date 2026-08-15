@@ -1,5 +1,4 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '../.env' });
 
 import express, { Application, Request, Response } from 'express';
 import compression from 'compression';
@@ -15,6 +14,7 @@ import { buildVersion } from './utils/version.js';
 import { getCurrentDir } from './utils/path.js';
 
 const __dirname = getCurrentDir(import.meta.url);
+dotenv.config({ path: path.join(__dirname, '../.env') });
 const isDev = process.env.NODE_ENV !== 'production';
 
 const { hash: buildHash, ts: buildTs, full: buildFull } = buildVersion();

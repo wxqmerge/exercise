@@ -222,6 +222,52 @@ describe('App', () => {
     expect(screen.getByText(`${day} · Exercise 1 of ${workout.length}`)).toBeInTheDocument();
   });
 
+  it('switches the workout day with the Day pulldown', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    const otherDay = CONFIG.days.find(d => d !== day);
+    const otherWorkout = getDayWorkout(CONFIG.dayMode, otherDay);
+    fireEvent.change(screen.getByLabelText('Day'), { target: { value: otherDay } });
+    expect(await screen.findByText(`${otherDay} · Exercise 1 of ${otherWorkout.length}`)).toBeInTheDocument();
+  });
+
+  it('keeps each day\'s entries separate', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    const otherDay = CONFIG.days.find(d => d !== day);
+    const otherWorkout = getDayWorkout(CONFIG.dayMode, otherDay);
+    fireEvent.change(screen.getByLabelText('Day'), { target: { value: otherDay } });
+    await screen.findByText(`${otherDay} · Exercise 1 of ${otherWorkout.length}`);
+    const stored = JSON.parse(localStorage.getItem('exercise-entries'));
+    expect(stored[day][workout[0].id].weights[0]).toBe('50');
+    expect(stored[otherDay]).toBeUndefined();
+    fireEvent.change(screen.getByLabelText('Day'), { target: { value: day } });
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    const storedAgain = JSON.parse(localStorage.getItem('exercise-entries'));
+    expect(storedAgain[day][workout[0].id].weights[0]).toBe('50');
+  });
+
+  it('can switch day from the summary screen', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    for (let i = 0; i < workout.length; i++) {
+      fireEvent.click(screen.getByRole('button', { name: i === workout.length - 1 ? 'Finish' : 'Next' }));
+    }
+    expect(screen.getByText('Workout complete')).toBeInTheDocument();
+    const otherDay = CONFIG.days.find(d => d !== day);
+    const otherWorkout = getDayWorkout(CONFIG.dayMode, otherDay);
+    fireEvent.change(screen.getByLabelText('Day'), { target: { value: otherDay } });
+    expect(await screen.findByText(`${otherDay} · Exercise 1 of ${otherWorkout.length}`)).toBeInTheDocument();
+  });
+
   it('shows a summary with saved reps and weight after finishing', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);

@@ -144,12 +144,12 @@ else
     exit 1
 fi
 
-# 3. Validate environment (server reads the ROOT .env)
+# 3. Validate environment (server reads server/.env)
 echo "[3/13] Validating environment..."
-ENV_FILE="$DIR/.env"
+ENV_FILE="$DIR/server/.env"
 if [ ! -f "$ENV_FILE" ]; then
     echo "  ERROR: $ENV_FILE not found."
-    echo "  Create .env with PORT, DOMAIN, DAY_MODE, DAY_COUNT (APP_KEY optional)."
+    echo "  Create server/.env with PORT, DOMAIN, DAY_MODE, DAY_COUNT (APP_KEY optional)."
     exit 1
 fi
 if grep -q '^APP_KEY=' "$ENV_FILE"; then
@@ -255,7 +255,7 @@ find "$DIR" -type d -not -path "*/node_modules/*" -exec chmod 755 {} +
 find "$DIR" -type f -not -path "*/node_modules/*" -exec chmod 644 {} +
 # Restore execute bits on node_modules/.bin/* (chown -R can affect them)
 find "$DIR/node_modules/.bin" -type f -exec chmod 755 {} + 2>/dev/null || true
-chmod 600 "$DIR/.env" 2>/dev/null || true
+chmod 600 "$DIR/server/.env" 2>/dev/null || true
 chmod 600 "$DIR/deploy/.env" 2>/dev/null || true
 
 # data/images/ — group-writable so the server process can save images

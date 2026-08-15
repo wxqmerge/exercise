@@ -27,7 +27,7 @@ npm run dev:all
 | `npm run lint` | ESLint |
 
 ## Environment
-Copy `.env` values from your environment (never committed). Server reads root `.env`:
+Copy `.env` values from your environment (never committed). Server reads `server/.env`:
 `PORT`, `DOMAIN`, `APP_KEY`, `DAY_MODE`, `DAY_COUNT`, `ADMIN_API_KEY`, `NODE_ENV`, `CORS_ORIGINS`.
 
 - `APP_KEY` is optional. When set, the API requires it on every request and the app asks for this key on first load (stored in browser localStorage). When empty, the API is open and the app loads without a key.

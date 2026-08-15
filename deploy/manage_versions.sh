@@ -1,0 +1,167 @@
+#!/bin/bash
+
+# Multi-Version Management Script for Exercise App
+# Designed for use on a production Linux server with Nginx
+#
+# Each instance is a checkout of this repo (own server/.env, own data/images/).
+# The instance name is the directory name, so it must be URL-safe.
+
+INSTANCES_DIR="./instances"
+
+# Derive version name from current directory
+VERSION=$(basename "$(pwd)")
+
+# Validate directory name for URL compatibility
+if echo "$VERSION" | grep -q '[^a-zA-Z0-9-]'; then
+    echo "Error: Directory name '$VERSION' contains invalid characters for a URL."
+    echo "Allowed: letters, numbers, hyphens (-)."
+    echo "Invalid: underscores (_), spaces, dots, etc."
+    echo "Rename the directory and re-run."
+    exit 1
+fi
+
+# Check running as root
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Error: This script must be run as root (sudo)."
+    exit 1
+fi
+
+# Check required .env entries (exercise server reads server/.env)
+ERRORS=0
+if [ -f "server/.env" ]; then
+    PORT=$(grep "^PORT=" server/.env 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')
+    if [ -z "$PORT" ]; then
+        echo "Error: PORT not set in server/.env"
+        ERRORS=$((ERRORS + 1))
+    fi
+    if grep -q "^APP_KEY=." server/.env 2>/dev/null; then
+        echo "  APP_KEY: (set)"
+    else
+        echo "  APP_KEY: (empty — this instance's API will be open, no key required)"
+    fi
+else
+    echo "Error: server/.env not found"
+    exit 1
+fi
+
+if [ $ERRORS -gt 0 ]; then
+    echo "Fix the errors above and re-run."
+    exit 1
+fi
+
+usage() {
+    echo "Usage: $0 {add|remove|list}"
+    echo "  add       - Create a new version instance and systemd service"
+    echo "  remove    - Remove an instance and its systemd service"
+    echo "  list      - List all managed instances"
+    exit 1
+}
+
+case "$1" in
+    add)
+
+        # Check for port conflicts across all instances in /var/www/html/
+        # (scans both exercise-style root .env and hiker-style server/.env)
+        if [ -d "/var/www/html" ]; then
+            CONFLICT=""
+            for envfile in /var/www/html/*/.env /var/www/html/*/server/.env; do
+                [ -f "$envfile" ] || continue
+                OTHER_PORT=$(grep "^PORT=" "$envfile" 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')
+                if [[ "$envfile" == */server/.env ]]; then
+                    OTHER_DIR=$(basename "$(dirname "$(dirname "$envfile")")")
+                else
+                    OTHER_DIR=$(basename "$(dirname "$envfile")")
+                fi
+                if [ "$OTHER_PORT" = "$PORT" ] && [ "$OTHER_DIR" != "$VERSION" ]; then
+                    CONFLICT="$OTHER_DIR"
+                    break
+                fi
+            done
+            if [ -n "$CONFLICT" ]; then
+                echo "Error: Port $PORT conflicts with instance '$CONFLICT'."
+                echo "Fix the port in server/.env and re-run."
+                exit 1
+            fi
+        fi
+
+        echo "Creating instance: $VERSION on port $PORT"
+
+        # 1. Create instance directory
+        mkdir -p "$INSTANCES_DIR/$VERSION"
+
+        # 2. Generate systemd service file
+        SVC_FILE="/etc/systemd/system/${VERSION}.service"
+        if [ -f "$SVC_FILE" ]; then
+            echo "  [WARN] Service file already exists: ${VERSION}.service"
+        else
+            cat > "$SVC_FILE" << EOF
+[Unit]
+Description=Exercise App - $VERSION
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=$(pwd)/server
+Environment=NODE_ENV=production
+Environment=PORT=$PORT
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+            echo "  Created service file: ${VERSION}.service"
+        fi
+
+        # 3. Enable and start the service
+        systemctl daemon-reload
+        systemctl enable "$VERSION"
+        systemctl start "$VERSION"
+        echo "  Service started: $VERSION"
+
+        echo "------------------------------------------------------------"
+        echo "SUCCESS: Instance $VERSION is configured."
+        echo "  Path:      /$VERSION/"
+        echo "  Port:      $PORT"
+        echo "Next Steps:"
+        echo "1. Check status:"
+        echo "   sudo systemctl status $VERSION"
+        echo "   sudo journalctl -u $VERSION -f"
+        echo "------------------------------------------------------------"
+        ;;
+
+    remove)
+        echo "Removing instance: $VERSION"
+
+        # 1. Stop and disable service
+        systemctl stop "$VERSION" 2>/dev/null
+        systemctl disable "$VERSION" 2>/dev/null
+        rm -f "/etc/systemd/system/${VERSION}.service"
+
+        # 2. Remove instance directory
+        rm -rf "$INSTANCES_DIR/$VERSION"
+
+        echo "SUCCESS: Instance $VERSION removed."
+        ;;
+
+    list)
+        echo "Managed Instances (in current project):"
+        echo "-----------------"
+        if [ -d "$INSTANCES_DIR" ]; then
+            ls "$INSTANCES_DIR" | while read -r dir; do
+                echo "- $dir"
+            done
+        else
+            echo "No instances found."
+        fi
+        ;;
+
+    *)
+        usage
+        ;;
+esac

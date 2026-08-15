@@ -11,6 +11,7 @@ function WorkoutApp({ onKeyCleared }) {
   const { config, error, invalidKey } = useConfig()
   const { images, overrides, setOverride, removeOverride, refetch } = useExerciseImages()
   const [today] = useState(() => new Date())
+  const [selectedDay, setSelectedDay] = useState(null)
 
   const changeKey = () => {
     clearApiKey()
@@ -44,11 +45,13 @@ function WorkoutApp({ onKeyCleared }) {
     )
   }
 
-  const day = getDayForDate(today, config.dayMode, config.days)
+  const day = selectedDay || getDayForDate(today, config.dayMode, config.days)
 
   return (
     <Workout
       day={day}
+      days={config.days}
+      onDayChange={setSelectedDay}
       exercises={getDayWorkout(config.dayMode, day)}
       images={images}
       overrides={overrides}

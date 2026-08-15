@@ -18,9 +18,40 @@ const isImageUrl = (url) => {
   }
 }
 
-export default function Workout({ day, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages }) {
+const ENTRIES_STORAGE = 'exercise-entries'
+
+const loadDayEntries = (day) => {
+  try {
+    const all = JSON.parse(localStorage.getItem(ENTRIES_STORAGE) || '{}')
+    return all[day] || {}
+  } catch {
+    return {}
+  }
+}
+
+const persistDayEntries = (day, entries) => {
+  try {
+    const all = JSON.parse(localStorage.getItem(ENTRIES_STORAGE) || '{}')
+    all[day] = entries
+    localStorage.setItem(ENTRIES_STORAGE, JSON.stringify(all))
+  } catch {
+    // storage unavailable — keep entries in memory only
+  }
+}
+
+const clearDayEntries = (day) => {
+  try {
+    const all = JSON.parse(localStorage.getItem(ENTRIES_STORAGE) || '{}')
+    delete all[day]
+    localStorage.setItem(ENTRIES_STORAGE, JSON.stringify(all))
+  } catch {
+    // storage unavailable
+  }
+}
+
+export default function Workout({ day, days = [], onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages }) {
   const [index, setIndex] = useState(0)
-  const [entries, setEntries] = useState({})
+  const [entries, setEntries] = useState(() => loadDayEntries(day))
   const [reps, setReps] = useState(['10', '10', '10'])
   const [weights, setWeights] = useState(['', '', ''])
   const [urlDraft, setUrlDraft] = useState('')
@@ -36,7 +67,9 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
 
   const saveAndNext = () => {
     const exercise = exercises[index]
-    setEntries(prev => ({ ...prev, [exercise.id]: { reps: [...reps], weights: [...weights] } }))
+    const nextEntries = { ...entries, [exercise.id]: { reps: [...reps], weights: [...weights] } }
+    setEntries(nextEntries)
+    persistDayEntries(day, nextEntries)
     setReps(['10', '10', '10'])
     setWeights(['', '', ''])
     setUrlDraft('')
@@ -44,6 +77,19 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
     setImageHint('')
     setZoomed(false)
     setIndex(i => i + 1)
+  }
+
+  const changeDay = (newDay) => {
+    if (newDay === day || !onDayChange) return
+    setEntries(loadDayEntries(newDay))
+    setReps(['10', '10', '10'])
+    setWeights(['', '', ''])
+    setUrlDraft('')
+    setImageError(false)
+    setImageHint('')
+    setZoomed(false)
+    setIndex(0)
+    onDayChange(newDay)
   }
 
   const goBack = () => {
@@ -63,6 +109,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
 
   const restart = () => {
     setEntries({})
+    clearDayEntries(day)
     setReps(['10', '10', '10'])
     setWeights(['', '', ''])
     setUrlDraft('')
@@ -71,6 +118,19 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
     setZoomed(false)
     setIndex(0)
   }
+
+  const daySelect = (
+    <select
+      value={day}
+      onChange={e => changeDay(e.target.value)}
+      aria-label="Day"
+      className="border border-gray-300 rounded px-2 py-1 text-xs bg-white text-gray-700"
+    >
+      {days.map(d => (
+        <option key={d} value={d}>{d}</option>
+      ))}
+    </select>
+  )
 
   if (exercises.length === 0) {
     return (
@@ -115,13 +175,17 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
               })}
             </tbody>
           </table>
-          <p className="mt-4 text-right font-semibold">Total volume: {totalVolume}</p>
-          <button
-            onClick={restart}
-            className="mt-4 w-full bg-primary text-white rounded py-2 font-semibold hover:opacity-90"
-          >
-            Start over
-          </button>
+            <p className="mt-4 text-right font-semibold">Total volume: {totalVolume}</p>
+            <div className="mt-4 flex items-center justify-center gap-1">
+              <span className="text-xs text-gray-400">Day</span>
+              {daySelect}
+            </div>
+            <button
+              onClick={restart}
+              className="mt-4 w-full bg-primary text-white rounded py-2 font-semibold hover:opacity-90"
+            >
+              Start over
+            </button>
         </div>
       </main>
     )
@@ -408,7 +472,11 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
           </div>
         </div>
 
-        <div className="px-6 pb-6 flex items-center gap-2">
+        <div className="px-6 pb-6 flex items-center gap-2 flex-wrap">
+          <label className="text-xs text-gray-400 flex items-center gap-1">
+            Day
+            {daySelect}
+          </label>
           <span className="text-xs text-gray-400">Backup</span>
           <button
             onClick={exportData}

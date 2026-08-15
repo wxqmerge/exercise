@@ -28,14 +28,14 @@ DEPLOY_PATH="${DEPLOY_PATH:-/var/www/html/$SERVICE}"
 ERRORS=0
 WARNINGS=0
 DIR="$(pwd)"
-if [ -f "$DIR/.env" ] && grep -q '^DOMAIN=' "$DIR/.env"; then
-    PARENT_DOMAIN=$(grep '^DOMAIN=' "$DIR/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+if [ -f "$DIR/server/.env" ] && grep -q '^DOMAIN=' "$DIR/server/.env"; then
+    PARENT_DOMAIN=$(grep '^DOMAIN=' "$DIR/server/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
 else
     PARENT_DOMAIN="example.com"
 fi
 DOMAIN="$(basename "$DIR").$PARENT_DOMAIN"
-if [ -f "$DIR/.env" ] && grep -q '^PORT=' "$DIR/.env"; then
-    SERVER_PORT=$(grep '^PORT=' "$DIR/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+if [ -f "$DIR/server/.env" ] && grep -q '^PORT=' "$DIR/server/.env"; then
+    SERVER_PORT=$(grep '^PORT=' "$DIR/server/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
 else
     SERVER_PORT=3000
 fi
@@ -45,7 +45,7 @@ NGINX_ENABLED="/etc/nginx/sites-enabled/$SERVICE"
 if [ -f "$NGINX_CONF" ]; then
     NGINX_PORT=$(grep "proxy_pass" "$NGINX_CONF" | grep -oE '[0-9]+' | tail -1)
     if [ -n "$NGINX_PORT" ] && [ "$NGINX_PORT" != "$SERVER_PORT" ]; then
-        warn "Port mismatch: .env uses $SERVER_PORT, but Nginx proxies to $NGINX_PORT"
+        warn "Port mismatch: server/.env uses $SERVER_PORT, but Nginx proxies to $NGINX_PORT"
         SERVER_PORT=$NGINX_PORT
     fi
 fi
@@ -78,10 +78,10 @@ echo "--- Deployment Info ---"
 echo "  Service: $SERVICE"
 echo "  Domain:  $DOMAIN"
 echo "  Frontend URL: $FRONTEND_URL"
-if [ -f ".env" ]; then
-    DAY_MODE_VAL=$(grep '^DAY_MODE=' .env | head -1 | cut -d= -f2- | tr -d '[:space:]')
-    DAY_COUNT_VAL=$(grep '^DAY_COUNT=' .env | head -1 | cut -d= -f2- | tr -d '[:space:]')
-    NODE_ENV_VAL=$(grep '^NODE_ENV=' .env | head -1 | cut -d= -f2- | tr -d '[:space:]')
+if [ -f "server/.env" ]; then
+    DAY_MODE_VAL=$(grep '^DAY_MODE=' server/.env | head -1 | cut -d= -f2- | tr -d '[:space:]')
+    DAY_COUNT_VAL=$(grep '^DAY_COUNT=' server/.env | head -1 | cut -d= -f2- | tr -d '[:space:]')
+    NODE_ENV_VAL=$(grep '^NODE_ENV=' server/.env | head -1 | cut -d= -f2- | tr -d '[:space:]')
     echo "  Day Mode:     ${DAY_MODE_VAL:-numbered}"
     echo "  Day Count:    ${DAY_COUNT_VAL:-3}"
     echo "  Node Env:     ${NODE_ENV_VAL:-development}"
@@ -160,30 +160,30 @@ else
     NEED_SERVER_BUILD=true
 fi
 
-# 5. Environment (server reads the ROOT .env)
+# 5. Environment (server reads server/.env)
 echo ""
-echo "--- Environment (.env) ---"
-if [ -f ".env" ]; then
-    pass ".env exists"
+echo "--- Environment (server/.env) ---"
+if [ -f "server/.env" ]; then
+    pass "server/.env exists"
 
     check_env_var() {
         local varname="$1"
         local required="$2"
         local default_val="$3"
-        if grep -q "^${varname}=" .env; then
-            local val=$(grep "^${varname}=" .env | head -1 | cut -d= -f2- | tr -d '[:space:]')
+        if grep -q "^${varname}=" server/.env; then
+            local val=$(grep "^${varname}=" server/.env | head -1 | cut -d= -f2- | tr -d '[:space:]')
             if [ -n "$val" ]; then
                 pass "$varname is set"
             elif [ "$required" = false ]; then
                 pass "$varname is empty (using default: $default_val)"
             else
-                fail "$varname is set but empty in .env"
+                fail "$varname is set but empty in server/.env"
                 NEED_ENV=true
             fi
         elif [ "$required" = false ]; then
             pass "$varname not set (using default: $default_val)"
         else
-            fail "$varname not found in .env"
+            fail "$varname not found in server/.env"
             NEED_ENV=true
         fi
     }
@@ -198,8 +198,8 @@ if [ -f ".env" ]; then
     check_env_var "CORS_ORIGINS" false "* (any origin)"
 
     # Validate DAY_MODE value
-    if grep -q '^DAY_MODE=' .env; then
-        DAY_VAL=$(grep '^DAY_MODE=' .env | head -1 | cut -d= -f2- | tr -d '[:space:]')
+    if grep -q '^DAY_MODE=' server/.env; then
+        DAY_VAL=$(grep '^DAY_MODE=' server/.env | head -1 | cut -d= -f2- | tr -d '[:space:]')
         if [ "$DAY_VAL" = "odd-even" ] || [ "$DAY_VAL" = "numbered" ]; then
             pass "DAY_MODE valid ($DAY_VAL)"
         else
@@ -208,7 +208,7 @@ if [ -f ".env" ]; then
         fi
     fi
 else
-    fail ".env missing — create .env with APP_KEY, PORT, DOMAIN, DAY_MODE, DAY_COUNT"
+    fail "server/.env missing — create server/.env with APP_KEY, PORT, DOMAIN, DAY_MODE, DAY_COUNT"
     NEED_ENV=true
 fi
 
@@ -262,19 +262,19 @@ else
     warn "data/images/ missing — images will not persist (create with: mkdir -p data/images)"
 fi
 
-# Check root .env
-if [ -f "$DIR/.env" ]; then
-    ENV_PERMS=$(stat -c '%a' "$DIR/.env" 2>/dev/null || echo "000")
-    ENV_OWNER=$(stat -c '%U' "$DIR/.env" 2>/dev/null || echo "unknown")
+# Check server/.env
+if [ -f "$DIR/server/.env" ]; then
+    ENV_PERMS=$(stat -c '%a' "$DIR/server/.env" 2>/dev/null || echo "000")
+    ENV_OWNER=$(stat -c '%U' "$DIR/server/.env" 2>/dev/null || echo "unknown")
     if [ "$ENV_OWNER" = "$SERVICE_USER" ] || [ "$ENV_PERMS" -ge 600 ]; then
-        pass ".env readable ($ENV_PERMS)"
+        pass "server/.env readable ($ENV_PERMS)"
     else
-        fail ".env not readable by $SERVICE_USER (owner: $ENV_OWNER, perms: $ENV_PERMS)"
-        echo "  Fix: sudo chown $SERVICE_USER:$SERVICE_USER $DIR/.env"
-        echo "  Fix: sudo chmod 600 $DIR/.env"
+        fail "server/.env not readable by $SERVICE_USER (owner: $ENV_OWNER, perms: $ENV_PERMS)"
+        echo "  Fix: sudo chown $SERVICE_USER:$SERVICE_USER $DIR/server/.env"
+        echo "  Fix: sudo chmod 600 $DIR/server/.env"
     fi
 else
-    warn ".env missing"
+    warn "server/.env missing"
 fi
 
 # 7. Nginx config
@@ -442,8 +442,8 @@ if command -v curl &>/dev/null; then
 
     # --- API Key Gate Check ---
     APP_KEY_VAL=""
-    if [ -f "$DIR/.env" ] && grep -q '^APP_KEY=' "$DIR/.env"; then
-        APP_KEY_VAL=$(grep '^APP_KEY=' "$DIR/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+    if [ -f "$DIR/server/.env" ] && grep -q '^APP_KEY=' "$DIR/server/.env"; then
+        APP_KEY_VAL=$(grep '^APP_KEY=' "$DIR/server/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
     fi
     API_CODE=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/config" 2>/dev/null | tr -d '[:space:]')
     if [[ "$API_CODE" =~ ^0+$ || -z "$API_CODE" ]]; then
@@ -555,7 +555,7 @@ else
         echo "  VITE_BASE=/$SERVICE/ npm run build:all"
     fi
     if [ "$NEED_ENV" = true ]; then
-        echo "  nano .env  (APP_KEY, PORT, DOMAIN, DAY_MODE, DAY_COUNT)"
+        echo "  nano server/.env  (APP_KEY, PORT, DOMAIN, DAY_MODE, DAY_COUNT)"
     fi
     if [ "$NEED_NGINX_CONF" = true ]; then
         echo "  sudo cp deploy/exercise.conf.example $NGINX_CONF"
@@ -587,8 +587,8 @@ fi
 echo ""
 echo "--- Access ---"
 ACCESS_KEY_VAL=""
-if [ -f "$DIR/.env" ] && grep -q '^APP_KEY=' "$DIR/.env"; then
-    ACCESS_KEY_VAL=$(grep '^APP_KEY=' "$DIR/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+if [ -f "$DIR/server/.env" ] && grep -q '^APP_KEY=' "$DIR/server/.env"; then
+    ACCESS_KEY_VAL=$(grep '^APP_KEY=' "$DIR/server/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
 fi
 if [ -n "$ACCESS_KEY_VAL" ]; then
     echo "  ${FRONTEND_URL}${ACCESS_KEY_VAL}/"

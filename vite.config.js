@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 import dotenv from 'dotenv'
 
-dotenv.config()
+dotenv.config({ path: 'server/.env' })
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'))
