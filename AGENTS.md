@@ -30,9 +30,11 @@ The client does NOT read config from env vars at build time. Instead, the server
 - `DAY_MODE=numbered` + `DAY_COUNT=3` → `days: ["Day 1", "Day 2", "Day 3"]`
 Server reads only root `.env` — `server/.env` is ignored (local-only, never committed).
 
-### App Key (Required)
-- `APP_KEY` in the root `.env` gates the entire API. If it is not set, every `/api/*` request returns 503 and nothing works.
-- The client stores the key in `localStorage` (`exercise-key`), shows a key-gate screen until one is entered, and sends it as the `X-App-Key` header on every request via `apiFetch` in `src/utils/api.js`.
+### App Key (Optional)
+- `APP_KEY` in the root `.env` gates the entire API. If it is set, every `/api/*` request must carry a matching `X-App-Key` header (401 on mismatch). If it is empty/unset, the API is open and no key is required.
+- On load with no stored key, the client probes `/api/config`: a 401 means a key is required → show the key-gate screen; a 200 means no key is needed → go straight to the workout.
+- The key can also be given in the URL path (not a query): `/<base>/<key>/` (e.g. `/exercise/<key>/`). On load the app extracts it (`getKeyFromUrl` in `src/utils/api.js`), stores it in `localStorage` (`exercise-key`), and unlocks.
+- The client stores the key in `localStorage` (`exercise-key`) and sends it as the `X-App-Key` header on every request via `apiFetch` in `src/utils/api.js`.
 - A 401 from the server shows a "Change key" button that clears the stored key and returns to the gate.
 
 ### Day Selection (Automatic)
@@ -48,7 +50,7 @@ There is no day-picker screen. The day is derived from the Julian date (day of y
 4. `flatten-server-dist.js` — flattens nested output
 
 ## API Quirks
-- All `/api/*` endpoints require the `X-App-Key` header matching `APP_KEY` (503 if `APP_KEY` is unset, 401 on mismatch)
+- All `/api/*` endpoints require the `X-App-Key` header matching `APP_KEY` when `APP_KEY` is set (401 on mismatch); when `APP_KEY` is empty the API is open
 - Write endpoints (`PUT`, `DELETE`, `POST`) require `X-API-Key` header (see `requireAdminKey` middleware)
 - **`/api/config`**: Returns `{ dayMode, days }` — client should not hardcode the day list.
 - **`/api/export` / `/api/import`**: Plain-JSON backup of all images (base64, no encryption).

@@ -1,0 +1,599 @@
+#!/bin/bash
+
+# Verify the Exercise site deployment
+# Usage: ./verify.sh [--fix]
+
+FIX=false
+for arg in "$@"; do
+    case $arg in
+        --fix) FIX=true ;;
+    esac
+done
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+pass() { echo -e "${GREEN}✓${NC} $1"; }
+fail() { echo -e "${RED}✗${NC} $1"; ERRORS=$((ERRORS + 1)); }
+warn() { echo -e "${YELLOW}⚠${NC} $1"; WARNINGS=$((WARNINGS + 1)); }
+
+# Load local deployment config
+DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+SERVICE="${SERVICE_NAME:-$(basename "$PWD")}"
+DEPLOY_PATH="${DEPLOY_PATH:-/var/www/html/$SERVICE}"
+
+ERRORS=0
+WARNINGS=0
+DIR="$(pwd)"
+if [ -f "$DIR/.env" ] && grep -q '^DOMAIN=' "$DIR/.env"; then
+    PARENT_DOMAIN=$(grep '^DOMAIN=' "$DIR/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+else
+    PARENT_DOMAIN="example.com"
+fi
+DOMAIN="$(basename "$DIR").$PARENT_DOMAIN"
+if [ -f "$DIR/.env" ] && grep -q '^PORT=' "$DIR/.env"; then
+    SERVER_PORT=$(grep '^PORT=' "$DIR/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+else
+    SERVER_PORT=3000
+fi
+NGINX_CONF="/etc/nginx/sites-available/$SERVICE"
+NGINX_ENABLED="/etc/nginx/sites-enabled/$SERVICE"
+
+if [ -f "$NGINX_CONF" ]; then
+    NGINX_PORT=$(grep "proxy_pass" "$NGINX_CONF" | grep -oE '[0-9]+' | tail -1)
+    if [ -n "$NGINX_PORT" ] && [ "$NGINX_PORT" != "$SERVER_PORT" ]; then
+        warn "Port mismatch: .env uses $SERVER_PORT, but Nginx proxies to $NGINX_PORT"
+        SERVER_PORT=$NGINX_PORT
+    fi
+fi
+
+# Compute frontend URL (served at /<service-name>/ on the parent domain)
+if [ -z "$FRONTEND_URL" ]; then
+    if [[ "$DOMAIN" == *".${PARENT_DOMAIN}" ]]; then
+        SUBDOMAIN=$(echo "$DOMAIN" | cut -d'.' -f1)
+        FRONTEND_URL="https://$PARENT_DOMAIN/$SUBDOMAIN/"
+    else
+        FRONTEND_URL="https://$DOMAIN/"
+    fi
+fi
+
+# Track which categories have errors for targeted quick fixes
+NEED_DEPS=false
+NEED_BUILD=false
+NEED_SERVER_BUILD=false
+NEED_ENV=false
+NEED_NGINX_CONF=false
+NEED_NGINX_ENABLE=false
+NEED_NGINX_RELOAD=false
+NEED_SERVICE_START=false
+
+echo "=== Verifying $DIR ==="
+echo ""
+
+# Deployment summary
+echo "--- Deployment Info ---"
+echo "  Service: $SERVICE"
+echo "  Domain:  $DOMAIN"
+echo "  Frontend URL: $FRONTEND_URL"
+if [ -f ".env" ]; then
+    DAY_MODE_VAL=$(grep '^DAY_MODE=' .env | head -1 | cut -d= -f2- | tr -d '[:space:]')
+    DAY_COUNT_VAL=$(grep '^DAY_COUNT=' .env | head -1 | cut -d= -f2- | tr -d '[:space:]')
+    NODE_ENV_VAL=$(grep '^NODE_ENV=' .env | head -1 | cut -d= -f2- | tr -d '[:space:]')
+    echo "  Day Mode:     ${DAY_MODE_VAL:-numbered}"
+    echo "  Day Count:    ${DAY_COUNT_VAL:-3}"
+    echo "  Node Env:     ${NODE_ENV_VAL:-development}"
+else
+    echo "  Day Mode:     numbered"
+    echo "  Day Count:    3"
+    echo "  Node Env:     development"
+fi
+echo ""
+
+# 1. Git
+echo "--- Git ---"
+if git diff --quiet 2>/dev/null; then
+    pass "No uncommitted changes"
+else
+    warn "Uncommitted changes detected"
+fi
+
+HEAD=$(git log --oneline -1 2>/dev/null || echo "unknown")
+echo "  HEAD: $HEAD"
+
+# 2. Node dependencies
+echo ""
+echo "--- Node ---"
+if [ -d "node_modules" ]; then
+    pass "node_modules exists"
+else
+    fail "node_modules missing — run npm install"
+    NEED_DEPS=true
+fi
+
+if [ -f "package.json" ]; then
+    pass "package.json exists"
+else
+    fail "package.json missing"
+fi
+
+if [ -d "server/node_modules" ]; then
+    pass "server/node_modules exists"
+else
+    fail "server/node_modules missing — run: cd server && npm install"
+    NEED_DEPS=true
+fi
+
+# 3. Build output
+echo ""
+echo "--- Build ---"
+if [ -d "dist" ]; then
+    pass "dist/ exists"
+    DIST_FILES=$(find dist/ -type f | wc -l)
+    echo "  Files: $DIST_FILES"
+    if [ -f "dist/index.html" ]; then
+        pass "dist/index.html exists"
+    else
+        fail "dist/index.html missing"
+        NEED_BUILD=true
+    fi
+else
+    fail "dist/ missing — run npm run build"
+    NEED_BUILD=true
+fi
+
+# 4. Server
+echo ""
+echo "--- Server ---"
+if [ -d "server/dist" ]; then
+    pass "server/dist/ exists"
+    if [ -f "server/dist/index.js" ]; then
+        pass "server/dist/index.js exists"
+    else
+        fail "server/dist/index.js missing"
+        NEED_SERVER_BUILD=true
+    fi
+else
+    fail "server/dist/ missing — run npm run build:server"
+    NEED_SERVER_BUILD=true
+fi
+
+# 5. Environment (server reads the ROOT .env)
+echo ""
+echo "--- Environment (.env) ---"
+if [ -f ".env" ]; then
+    pass ".env exists"
+
+    check_env_var() {
+        local varname="$1"
+        local required="$2"
+        local default_val="$3"
+        if grep -q "^${varname}=" .env; then
+            local val=$(grep "^${varname}=" .env | head -1 | cut -d= -f2- | tr -d '[:space:]')
+            if [ -n "$val" ]; then
+                pass "$varname is set"
+            elif [ "$required" = false ]; then
+                pass "$varname is empty (using default: $default_val)"
+            else
+                fail "$varname is set but empty in .env"
+                NEED_ENV=true
+            fi
+        elif [ "$required" = false ]; then
+            pass "$varname not set (using default: $default_val)"
+        else
+            fail "$varname not found in .env"
+            NEED_ENV=true
+        fi
+    }
+
+    check_env_var "APP_KEY" false "(none - API open, no key required)"
+    check_env_var "PORT" false "3000"
+    check_env_var "DOMAIN" false "example.com"
+    check_env_var "DAY_MODE" false "numbered"
+    check_env_var "DAY_COUNT" false "3"
+    check_env_var "ADMIN_API_KEY" false "(none)"
+    check_env_var "NODE_ENV" false "development"
+    check_env_var "CORS_ORIGINS" false "* (any origin)"
+
+    # Validate DAY_MODE value
+    if grep -q '^DAY_MODE=' .env; then
+        DAY_VAL=$(grep '^DAY_MODE=' .env | head -1 | cut -d= -f2- | tr -d '[:space:]')
+        if [ "$DAY_VAL" = "odd-even" ] || [ "$DAY_VAL" = "numbered" ]; then
+            pass "DAY_MODE valid ($DAY_VAL)"
+        else
+            fail "DAY_MODE invalid: '$DAY_VAL' (expected odd-even or numbered)"
+            NEED_ENV=true
+        fi
+    fi
+else
+    fail ".env missing — create .env with APP_KEY, PORT, DOMAIN, DAY_MODE, DAY_COUNT"
+    NEED_ENV=true
+fi
+
+# Check if server is actually responding locally
+if command -v curl &>/dev/null; then
+    if curl -sk --max-time 2 "http://localhost:$SERVER_PORT/health" >/dev/null 2>&1; then
+        pass "Server responding on localhost:$SERVER_PORT"
+    else
+        warn "Server process might be running but not responding on localhost:$SERVER_PORT"
+    fi
+fi
+
+# 6. File permissions (prevents data corruption)
+echo ""
+echo "--- File Permissions ---"
+DEPLOY_USER=$(whoami)
+SERVICE_USER=$(systemctl show -p User --value "$SERVICE" 2>/dev/null || echo "unknown")
+if [ "$SERVICE_USER" = "unknown" ] || [ -z "$SERVICE_USER" ]; then
+    SERVICE_USER="$DEPLOY_USER"
+fi
+
+# Check data/images/ directory (server writes exercise images here)
+IMAGES_DIR="$DIR/data/images"
+if [ -d "$IMAGES_DIR" ]; then
+    pass "data/images/ exists"
+    DIR_PERMS=$(stat -c '%a' "$IMAGES_DIR" 2>/dev/null || echo "000")
+    DIR_OWNER=$(stat -c '%U' "$IMAGES_DIR" 2>/dev/null || echo "unknown")
+    echo "  Owner: $DIR_OWNER Permissions: $DIR_PERMS"
+    if [ "$DIR_OWNER" = "$SERVICE_USER" ] || [ "$DIR_PERMS" -ge 755 ]; then
+        pass "data/images/ is accessible by $SERVICE_USER"
+    else
+        fail "data/images/ not writable by $SERVICE_USER (owner: $DIR_OWNER, perms: $DIR_PERMS)"
+        echo "  Fix: sudo chown $SERVICE_USER:$SERVICE_USER $IMAGES_DIR"
+        echo "  Fix: sudo chmod 755 $IMAGES_DIR"
+    fi
+    for img_file in "$IMAGES_DIR"/*; do
+        if [ -f "$img_file" ]; then
+            FILE_PERMS=$(stat -c '%a' "$img_file" 2>/dev/null || echo "000")
+            FILE_OWNER=$(stat -c '%U' "$img_file" 2>/dev/null || echo "unknown")
+            BASENAME=$(basename "$img_file")
+            if [ "$FILE_OWNER" = "$SERVICE_USER" ] || [ "$FILE_PERMS" -ge 644 ]; then
+                pass "$BASENAME readable ($FILE_PERMS)"
+            else
+                fail "$BASENAME not readable by $SERVICE_USER (owner: $FILE_OWNER, perms: $FILE_PERMS)"
+                echo "  Fix: sudo chown $SERVICE_USER:$SERVICE_USER $img_file"
+                echo "  Fix: sudo chmod 644 $img_file"
+            fi
+        fi
+    done
+else
+    warn "data/images/ missing — images will not persist (create with: mkdir -p data/images)"
+fi
+
+# Check root .env
+if [ -f "$DIR/.env" ]; then
+    ENV_PERMS=$(stat -c '%a' "$DIR/.env" 2>/dev/null || echo "000")
+    ENV_OWNER=$(stat -c '%U' "$DIR/.env" 2>/dev/null || echo "unknown")
+    if [ "$ENV_OWNER" = "$SERVICE_USER" ] || [ "$ENV_PERMS" -ge 600 ]; then
+        pass ".env readable ($ENV_PERMS)"
+    else
+        fail ".env not readable by $SERVICE_USER (owner: $ENV_OWNER, perms: $ENV_PERMS)"
+        echo "  Fix: sudo chown $SERVICE_USER:$SERVICE_USER $DIR/.env"
+        echo "  Fix: sudo chmod 600 $DIR/.env"
+    fi
+else
+    warn ".env missing"
+fi
+
+# 7. Nginx config
+echo ""
+echo "--- Nginx ---"
+if [ -f "$NGINX_CONF" ]; then
+    pass "Nginx config exists at $NGINX_CONF"
+
+    # Check for conflicting server names
+    CONFLICT_COUNT=$(grep -rl "server_name $DOMAIN" /etc/nginx/sites-enabled/ 2>/dev/null | wc -l)
+    if [ "$CONFLICT_COUNT" -gt 1 ]; then
+        fail "Conflicting nginx configs found ($CONFLICT_COUNT files with server_name $DOMAIN)"
+        echo "  Files:"
+        grep -rl "server_name $DOMAIN" /etc/nginx/sites-enabled/ 2>/dev/null | while read -r f; do echo "    - $f"; done
+        NEED_NGINX_RELOAD=true
+    fi
+
+    if grep -qE "proxy_pass.*(localhost|127\.0\.0\.1):$SERVER_PORT" "$NGINX_CONF"; then
+        pass "Proxy to Express configured (port $SERVER_PORT)"
+    else
+        warn "Proxy to Express not configured — all requests will fail"
+    fi
+    if grep -q "server_name $DOMAIN" "$NGINX_CONF"; then
+        pass "server_name matches $DOMAIN"
+    else
+        warn "server_name mismatch — expected $DOMAIN"
+        NEED_NGINX_RELOAD=true
+        if [ "$FIX" = true ]; then
+            echo "  Fix: sudo sed -i \"s/server_name .*/server_name $DOMAIN;/\" $NGINX_CONF"
+        fi
+    fi
+
+    # Check SPA location block
+    SPA_PATH=$(grep -oE 'location [^ ]+/' "$NGINX_CONF" | grep -v '/api/' | grep -v '/health' | grep -v '/\.' | head -1 | awk '{print $2}')
+    if [ -n "$SPA_PATH" ]; then
+        SPA_BLOCK=$(sed -n "#location ${SPA_PATH}#,/#}#p" "$NGINX_CONF")
+        if echo "$SPA_BLOCK" | grep -q '^\s*alias'; then
+            fail "SPA location $SPA_PATH uses 'alias' — breaks SPA refresh (use 'root' instead)"
+            NEED_NGINX_RELOAD=true
+        else
+            pass "SPA location $SPA_PATH uses 'root' (correct for SPA)"
+        fi
+    fi
+else
+    fail "Nginx config missing at $NGINX_CONF"
+    NEED_NGINX_CONF=true
+    NEED_NGINX_ENABLE=true
+    if [ "$FIX" = true ]; then
+        echo "  Fix: run deploy/update.sh or copy deploy/exercise.conf.example to $NGINX_CONF"
+    fi
+fi
+
+if [ -f "$NGINX_ENABLED" ]; then
+    pass "Nginx site enabled"
+else
+    fail "Nginx site not enabled"
+    NEED_NGINX_ENABLE=true
+    if [ "$FIX" = true ]; then
+        echo "  Fix: sudo ln -s $NGINX_CONF $NGINX_ENABLED"
+    fi
+fi
+
+if command -v nginx &>/dev/null; then
+    if sudo nginx -t 2>&1 | grep -q "syntax is ok"; then
+        pass "Nginx config test passed"
+    else
+        fail "Nginx config test failed"
+        sudo nginx -t 2>&1 | head -5
+    fi
+else
+    warn "nginx not installed"
+fi
+
+# 8. Service
+echo ""
+echo "--- Service ---"
+if command -v systemctl &>/dev/null; then
+    SERVICE_STATE=$(systemctl show -p ActiveState --value "$SERVICE" 2>/dev/null || echo "unknown")
+    if systemctl is-active --quiet "$SERVICE"; then
+        pass "$SERVICE service is running"
+    elif systemctl show -p ActiveState --value "$SERVICE" | grep -q "activating"; then
+        warn "$SERVICE service is activating (it may take a moment to respond)"
+    else
+        fail "$SERVICE service is not running ($(systemctl show -p ActiveState --value "$SERVICE" || echo "unknown"))"
+        NEED_SERVICE_START=true
+        if [ "$FIX" = true ]; then
+            echo "  Fix: sudo systemctl start $SERVICE"
+        fi
+    fi
+else
+    warn "systemctl not available (non-Linux?)"
+fi
+
+# 9. Disk Space
+echo ""
+echo "--- Disk Space ---"
+DISK_USAGE=$(df / --output=pcent | tail -1 | tr -dc '0-9')
+if [ "$DISK_USAGE" -gt 90 ]; then
+    fail "Disk space is critically low ($DISK_USAGE% used)"
+else
+    pass "Disk space is healthy ($DISK_USAGE% used)"
+fi
+
+# 10. SSL certificate
+echo ""
+echo "--- SSL ---"
+if command -v certbot &>/dev/null; then
+    CERT_LIST=$(sudo certbot certificates 2>/dev/null || true)
+    if echo "$CERT_LIST" | grep -q "$DOMAIN"; then
+        pass "SSL certificate exists for $DOMAIN"
+        EXPIRY=$(echo "$CERT_LIST" | grep -A5 "$DOMAIN" | grep "expires" | head -1)
+        if [ -n "$EXPIRY" ]; then
+            echo "  $EXPIRY"
+        fi
+    else
+        warn "No SSL certificate for $DOMAIN — run certbot --nginx -d $DOMAIN"
+    fi
+else
+    warn "certbot not installed"
+fi
+
+# 11. HTTPS checks
+echo ""
+echo "--- HTTPS Check ---"
+if command -v curl &>/dev/null; then
+    # --- Frontend Check ---
+    HTTPS_CODE=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "$FRONTEND_URL" 2>/dev/null | tr -d '[:space:]')
+    if [[ "$HTTPS_CODE" =~ ^0+$ || -z "$HTTPS_CODE" ]]; then
+        SUBPATH=$(echo "$FRONTEND_URL" | sed -E 's|^https?://[^/]+||')
+        LOCAL_FRONTEND_URL="http://localhost:$SERVER_PORT$SUBPATH"
+        LOCAL_HTTPS_CODE=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "$LOCAL_FRONTEND_URL" 2>/dev/null | tr -d '[:space:]')
+        if [[ "$LOCAL_HTTPS_CODE" =~ ^0+$ || -z "$LOCAL_HTTPS_CODE" ]]; then
+            HTTPS_CODE="000"
+        elif [ "$LOCAL_HTTPS_CODE" = "200" ]; then
+            warn "Public $FRONTEND_URL unreachable (DNS/NAT?), but $LOCAL_FRONTEND_URL is OK"
+            HTTPS_CODE="200"
+        else
+            HTTPS_CODE="$LOCAL_HTTPS_CODE"
+        fi
+    fi
+
+    if [ "$HTTPS_CODE" = "200" ]; then
+        pass "HTTPS 200 from $FRONTEND_URL (frontend)"
+    else
+        fail "HTTPS $HTTPS_CODE from $FRONTEND_URL (frontend)"
+    fi
+
+    # --- Server Health Check ---
+    HEALTH_CODE=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "https://$DOMAIN/health" 2>/dev/null | tr -d '[:space:]')
+    if [[ "$HEALTH_CODE" =~ ^0+$ || -z "$HEALTH_CODE" ]]; then
+        HEALTH_CODE=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "http://localhost:$SERVER_PORT/health" 2>/dev/null | tr -d '[:space:]')
+        if [[ "$HEALTH_CODE" =~ ^0+$ || -z "$HEALTH_CODE" ]]; then
+            HEALTH_CODE="000"
+        elif [ "$HEALTH_CODE" = "200" ]; then
+            warn "HTTPS $DOMAIN/health unreachable (DNS?), but http://localhost:$SERVER_PORT/health is OK"
+            HEALTH_CODE="200"
+        fi
+    fi
+
+    if [ "$HEALTH_CODE" = "200" ]; then
+        pass "HTTPS 200 from /health (server)"
+    else
+        fail "HTTPS $HEALTH_CODE from /health (server)"
+    fi
+
+    # --- API Key Gate Check ---
+    APP_KEY_VAL=""
+    if [ -f "$DIR/.env" ] && grep -q '^APP_KEY=' "$DIR/.env"; then
+        APP_KEY_VAL=$(grep '^APP_KEY=' "$DIR/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+    fi
+    API_CODE=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/config" 2>/dev/null | tr -d '[:space:]')
+    if [[ "$API_CODE" =~ ^0+$ || -z "$API_CODE" ]]; then
+        API_CODE=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "http://localhost:$SERVER_PORT/api/config" 2>/dev/null | tr -d '[:space:]')
+        if [[ "$API_CODE" =~ ^0+$ || -z "$API_CODE" ]]; then
+            API_CODE="000"
+        fi
+    fi
+
+    if [ -n "$APP_KEY_VAL" ]; then
+        if [ "$API_CODE" = "401" ]; then
+            pass "API key gate active (401 without key)"
+        elif [ "$API_CODE" = "200" ]; then
+            fail "API returned 200 without a key — key gate is NOT enforced"
+        elif [ "$API_CODE" = "000" ]; then
+            warn "API unreachable (000)"
+        else
+            warn "API returned $API_CODE (expected 401)"
+        fi
+    else
+        if [ "$API_CODE" = "200" ]; then
+            pass "API open (no key required)"
+        elif [ "$API_CODE" = "000" ]; then
+            warn "API unreachable (000)"
+        else
+            warn "API returned $API_CODE (expected 200 without APP_KEY)"
+        fi
+    fi
+
+    # --- Redirect Check ---
+    HTTP_REDIRECT=$(curl -sk --max-time 5 -s -o /dev/null -w "%{http_code}" "http://$DOMAIN/" 2>/dev/null | tr -d '[:space:]')
+    if [[ "$HTTP_REDIRECT" =~ ^0+$ || -z "$HTTP_REDIRECT" ]]; then
+        LOCAL_REDIRECT_URL="http://localhost:$SERVER_PORT/"
+        HTTP_REDIRECT=$(curl -sk --max-time 5 -s -o /dev/null -w "%{http_code}" "$LOCAL_REDIRECT_URL" 2>/dev/null | tr -d '[:space:]')
+        if [[ "$HTTP_REDIRECT" =~ ^0+$ || -z "$HTTP_REDIRECT" ]]; then
+            HTTP_REDIRECT="000"
+        fi
+    fi
+
+    if [ "$HTTP_REDIRECT" = "301" ] || [ "$HTTP_REDIRECT" = "302" ]; then
+        pass "HTTP redirects to HTTPS"
+    elif [ "$HTTP_REDIRECT" = "200" ]; then
+        warn "HTTP serves content directly (no HTTPS redirect)"
+    elif [ "$HTTP_REDIRECT" = "000" ]; then
+        warn "HTTP returned 000 (unreachable)"
+    else
+        warn "HTTP returned $HTTP_REDIRECT"
+    fi
+else
+    warn "curl not available — skipping HTTPS check"
+fi
+
+# Summary
+echo ""
+echo "=== Summary ==="
+if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
+    echo -e "${GREEN}All checks passed.${NC}"
+elif [ $ERRORS -eq 0 ]; then
+    echo -e "${YELLOW}No errors, $WARNINGS warning(s).${NC}"
+else
+    echo -e "${RED}$ERRORS error(s), $WARNINGS warning(s).${NC}"
+    echo ""
+
+    # Diagnostic info when there are errors
+    echo "--- Diagnostics ---"
+    echo ""
+    echo "Service status:"
+    if sudo systemctl is-active "$SERVICE" 2>/dev/null; then
+        echo "  Running"
+    else
+        echo "  NOT running"
+        NEED_SERVICE_START=true
+    fi
+    echo ""
+    echo "Nginx status:"
+    if sudo systemctl is-active nginx 2>/dev/null; then
+        echo "  Running"
+    else
+        echo "  NOT running"
+        NEED_NGINX_RELOAD=true
+    fi
+    echo ""
+    echo "Nginx config test:"
+    sudo nginx -t 2>&1
+    echo ""
+    echo "Nginx sites-enabled:"
+    ls -la /etc/nginx/sites-enabled/ 2>/dev/null || echo "  No sites-enabled directory"
+    echo ""
+    echo "Nginx proxy_pass:"
+    grep -n "proxy_pass" "$NGINX_CONF" 2>/dev/null || echo "  No proxy_pass found"
+    echo ""
+    echo "Conflicting server names:"
+    grep -rl "server_name $DOMAIN" /etc/nginx/sites-enabled/ 2>/dev/null | wc -l | xargs -I{} echo "  {} file(s) found"
+    grep -rl "server_name $DOMAIN" /etc/nginx/sites-enabled/ 2>/dev/null | while read -r f; do echo "    - $f"; done
+    echo ""
+    echo "Local server health test:"
+    LOCAL_HEALTH=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "http://localhost:$SERVER_PORT/health" 2>/dev/null | tr -d '[:space:]' || echo "000")
+    echo "  HTTP $LOCAL_HEALTH"
+    echo ""
+    echo "Direct server health (port $SERVER_PORT):"
+    DIRECT_HEALTH=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" "http://localhost:$SERVER_PORT/health" 2>/dev/null | tr -d '[:space:]' || echo "000")
+    echo "  HTTP $DIRECT_HEALTH"
+    echo ""
+    echo "Quick fixes:"
+    if [ "$NEED_DEPS" = true ]; then
+        echo "  npm install && (cd server && npm install)"
+    fi
+    if [ "$NEED_BUILD" = true ] || [ "$NEED_SERVER_BUILD" = true ]; then
+        echo "  VITE_BASE=/$SERVICE/ npm run build:all"
+    fi
+    if [ "$NEED_ENV" = true ]; then
+        echo "  nano .env  (APP_KEY, PORT, DOMAIN, DAY_MODE, DAY_COUNT)"
+    fi
+    if [ "$NEED_NGINX_CONF" = true ]; then
+        echo "  sudo cp deploy/exercise.conf.example $NGINX_CONF"
+        echo "  sudo sed -i \"s/server_name .*/server_name $DOMAIN;/\" $NGINX_CONF"
+    fi
+    if [ "$NEED_NGINX_ENABLE" = true ]; then
+        echo "  sudo ln -s $NGINX_CONF $NGINX_ENABLED"
+    fi
+    if [ "$NEED_NGINX_RELOAD" = true ]; then
+        echo "  sudo nginx -t && sudo systemctl reload nginx"
+    fi
+    CONFLICT_COUNT=$(grep -rl "server_name $DOMAIN" /etc/nginx/sites-enabled/ 2>/dev/null | wc -l)
+    if [ "$CONFLICT_COUNT" -gt 1 ]; then
+        echo "  Remove conflicting configs:"
+        grep -rl "server_name $DOMAIN" /etc/nginx/sites-enabled/ 2>/dev/null | while read -r f; do
+            echo "    sudo rm $f"
+        done
+        echo "  sudo systemctl reload nginx"
+    fi
+    if [ "$NEED_SERVICE_START" = true ]; then
+        echo "  sudo systemctl enable --now $SERVICE"
+    fi
+    if [ "$DIRECT_HEALTH" != "200" ]; then
+        echo "  sudo systemctl restart $SERVICE"
+    fi
+fi
+
+# Always show app URL at the end (key goes in the URL path, not a query)
+echo ""
+echo "--- Access ---"
+ACCESS_KEY_VAL=""
+if [ -f "$DIR/.env" ] && grep -q '^APP_KEY=' "$DIR/.env"; then
+    ACCESS_KEY_VAL=$(grep '^APP_KEY=' "$DIR/.env" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+fi
+if [ -n "$ACCESS_KEY_VAL" ]; then
+    echo "  ${FRONTEND_URL}${ACCESS_KEY_VAL}/"
+else
+    echo "  $FRONTEND_URL (No Key)"
+fi
+
+exit $ERRORS

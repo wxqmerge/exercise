@@ -30,7 +30,7 @@ npm run dev:all
 Copy `.env` values from your environment (never committed). Server reads root `.env`:
 `PORT`, `DOMAIN`, `APP_KEY`, `DAY_MODE`, `DAY_COUNT`, `ADMIN_API_KEY`, `NODE_ENV`, `CORS_ORIGINS`.
 
-- `APP_KEY` is required — without it the API returns 503 and nothing works. The app asks for this key on first load (stored in browser localStorage) and sends it with every request.
+- `APP_KEY` is optional. When set, the API requires it on every request and the app asks for this key on first load (stored in browser localStorage). When empty, the API is open and the app loads without a key.
 
 - `DAY_MODE=odd-even` → workout day is Odd / Even by day-of-year parity
 - `DAY_MODE=numbered` + `DAY_COUNT=3` → workout day is Day 1 / Day 2 / Day 3 by day of year

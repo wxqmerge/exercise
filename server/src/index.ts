@@ -65,7 +65,7 @@ app.use('/api', apiLimiter);
 
 app.use('/api', (req, res, next) => {
   if (!APP_KEY) {
-    res.status(503).json({ success: false, error: { message: 'Server not configured: set APP_KEY' } });
+    next();
     return;
   }
   if (req.headers['x-app-key'] !== APP_KEY) {
@@ -325,7 +325,7 @@ if (isMainModule) {
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`✓ Build: ${buildFull}`);
     console.log(`✓ CORS Origins: ${process.env.CORS_ORIGINS || '*'}`);
-    console.log(`✓ App Key: ${process.env.APP_KEY ? 'Enabled' : '⚠️  NOT SET (API will return 503)'}`);
+    console.log(`✓ App Key: ${process.env.APP_KEY ? 'Enabled' : 'Disabled (no key required)'}`);
     console.log(`✓ Admin API Key: ${process.env.ADMIN_API_KEY ? 'Enabled' : '⚠️  NOT SET'}`);
     console.log(`========================================\n`);
   });

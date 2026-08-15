@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { apiFetch, getApiKey } from '../utils/api'
+import { apiFetch } from '../utils/api'
 
 export function useConfig() {
   const [config, setConfig] = useState(null)
@@ -7,8 +7,6 @@ export function useConfig() {
   const [invalidKey, setInvalidKey] = useState(false)
 
   useEffect(() => {
-    const key = getApiKey()
-    if (!key) return
     let cancelled = false
     apiFetch('/api/config')
       .then(res => {

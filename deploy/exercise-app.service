@@ -1,0 +1,21 @@
+[Unit]
+Description=Exercise App Server
+After=network.target
+
+[Service]
+Type=simple
+User=exercise
+Group=exercise
+WorkingDirectory=/var/www/html/exercise-app
+EnvironmentFile=/var/www/html/exercise-app/.env
+ExecStart=/usr/bin/node /var/www/html/exercise-app/server/dist/index.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+KillMode=mixed
+KillSignal=SIGINT
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

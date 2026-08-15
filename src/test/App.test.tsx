@@ -14,6 +14,28 @@ describe('App', () => {
     expect(screen.getByLabelText('Key')).toBeInTheDocument();
   });
 
+  it('uses the key from the URL path', async () => {
+    const prevLocation = window.location;
+    window.location = { ...prevLocation, pathname: '/my-url-key/' };
+    localStorage.removeItem('exercise-key');
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    expect(await screen.findByText(`${day} · Exercise 1 of ${workout.length}`)).toBeInTheDocument();
+    expect(localStorage.getItem('exercise-key')).toBe('my-url-key');
+    window.location = prevLocation;
+  });
+
+  it('loads without a key when the server does not require one', async () => {
+    globalThis.__TEST_MOCK_DATA__.keyRequired = false;
+    localStorage.removeItem('exercise-key');
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    expect(await screen.findByText(`${day} · Exercise 1 of ${workout.length}`)).toBeInTheDocument();
+    expect(screen.queryByText(/enter your key to continue/i)).not.toBeInTheDocument();
+  });
+
   it('unlocks the app after entering the key', async () => {
     localStorage.removeItem('exercise-key');
     render(<App />);

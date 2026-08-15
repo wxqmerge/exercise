@@ -11,3 +11,10 @@ export const apiFetch = (url, options = {}) =>
     ...options,
     headers: { ...(options.headers || {}), 'X-App-Key': getApiKey() },
   })
+
+export const getKeyFromUrl = () => {
+  const base = (import.meta.env.BASE_URL || '/').split('/').filter(Boolean)
+  const path = window.location.pathname.split('/').filter(Boolean)
+  const extra = path.slice(base.length)
+  return extra.length === 1 ? extra[0] : ''
+}

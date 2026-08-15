@@ -6,6 +6,7 @@ const DEFAULT_CONFIG = { dayMode: 'numbered', days: ['Day 1', 'Day 2', 'Day 3'] 
 const mockData = {
   config: { ...DEFAULT_CONFIG },
   configStatus: 200,
+  keyRequired: true,
   images: {},
   imagesSaveResult: { ok: true },
 };
@@ -17,6 +18,14 @@ const createFetchMock = () => {
         return Promise.resolve({
           ok: false,
           status: mockData.configStatus,
+          json: () => Promise.resolve({ success: false, error: { message: 'Invalid key' } }),
+        });
+      }
+      const sentKey = options?.headers?.['X-App-Key'] || '';
+      if (mockData.keyRequired && !sentKey) {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
           json: () => Promise.resolve({ success: false, error: { message: 'Invalid key' } }),
         });
       }
@@ -110,6 +119,7 @@ beforeEach(() => {
   globalThis.fetch = createFetchMock();
   mockData.config = { ...DEFAULT_CONFIG };
   mockData.configStatus = 200;
+  mockData.keyRequired = true;
   mockData.images = {};
   mockData.imagesSaveResult = { ok: true };
   localStorage.clear();

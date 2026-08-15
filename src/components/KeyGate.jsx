@@ -30,6 +30,9 @@ export default function KeyGate({ onUnlock }) {
         >
           Unlock
         </button>
+        <p className="mt-3 text-xs text-gray-400">
+          You can also put the key in the URL: <code>/…/&lt;key&gt;/</code>
+        </p>
       </form>
     </main>
   )

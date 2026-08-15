@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useConfig } from './hooks/useConfig'
 import { useExerciseImages } from './hooks/useExerciseImages'
 import { getDayWorkout } from './data/exercises'
 import { getDayForDate } from './utils/day'
-import { getApiKey, setApiKey, clearApiKey } from './utils/api'
+import { getApiKey, setApiKey, clearApiKey, getKeyFromUrl } from './utils/api'
 import Workout from './components/Workout'
 import KeyGate from './components/KeyGate'
 
@@ -60,9 +60,44 @@ function WorkoutApp({ onKeyCleared }) {
 }
 
 export default function App() {
-  const [key, setKey] = useState(() => getApiKey())
+  const [key, setKey] = useState(() => {
+    const urlKey = getKeyFromUrl()
+    if (urlKey) {
+      setApiKey(urlKey)
+      return urlKey
+    }
+    return getApiKey()
+  })
+  const [needsKey, setNeedsKey] = useState(null)
 
-  if (!key) {
+  useEffect(() => {
+    if (key !== '') return
+    let cancelled = false
+    fetch('/api/config')
+      .then(res => {
+        if (!cancelled) setNeedsKey(res.status === 401)
+      })
+      .catch(() => {
+        if (!cancelled) setNeedsKey(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [key])
+
+  if (key) {
+    return <WorkoutApp key={key} onKeyCleared={() => setKey('')} />
+  }
+
+  if (needsKey === null) {
+    return (
+      <main className="min-h-screen bg-[#f5f5f0] flex items-center justify-center p-4">
+        <p className="text-gray-600">Loading…</p>
+      </main>
+    )
+  }
+
+  if (needsKey) {
     return (
       <KeyGate
         onUnlock={(unlocked) => {
@@ -73,5 +108,5 @@ export default function App() {
     )
   }
 
-  return <WorkoutApp key={key} onKeyCleared={() => setKey('')} />
+  return <WorkoutApp key="no-key" onKeyCleared={() => setKey('')} />
 }
