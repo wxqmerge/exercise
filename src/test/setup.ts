@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { vi, beforeEach } from 'vitest';
 
-const DEFAULT_CONFIG = { dayMode: 'odd-even', days: ['Odd', 'Even'] };
+const DEFAULT_CONFIG = { dayMode: 'numbered', days: ['Day 1', 'Day 2', 'Day 3'] };
 
 const mockData = {
   config: { ...DEFAULT_CONFIG },

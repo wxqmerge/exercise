@@ -23,6 +23,11 @@ The client does NOT read config from env vars at build time. Instead, the server
 - `DAY_MODE=numbered` + `DAY_COUNT=3` → `days: ["Day 1", "Day 2", "Day 3"]`
 Server reads only root `.env` — `server/.env` is ignored (local-only, never committed).
 
+### Day Selection (Automatic)
+There is no day-picker screen. The day is derived from the Julian date (day of year) in `src/utils/day.js`:
+- `numbered`: `days[(doy - 1) mod N]` — doy divisible by 3 → Day 3
+- `odd-even`: odd doy → Odd, even doy → Even
+
 ### Shared Types Compilation
 `server/package.json` build script runs 4 steps in order:
 1. `compile-shared.js` — copies TS to temp dir, compiles with tsc

@@ -30,11 +30,11 @@ npm run dev:all
 Copy `.env` values from your environment (never committed). Server reads root `.env`:
 `PORT`, `DOMAIN`, `DAY_MODE`, `DAY_COUNT`, `ADMIN_API_KEY`, `NODE_ENV`, `CORS_ORIGINS`.
 
-- `DAY_MODE=odd-even` → day picker shows Odd / Even
-- `DAY_MODE=numbered` + `DAY_COUNT=3` → day picker shows Day 1 / Day 2 / Day 3
+- `DAY_MODE=odd-even` → workout day is Odd / Even by day-of-year parity
+- `DAY_MODE=numbered` + `DAY_COUNT=3` → workout day is Day 1 / Day 2 / Day 3 by day of year
 
 ## How it works
-1. Pick a day (list comes from `/api/config`)
+1. The day is picked automatically from the Julian date (day of year): `Day 1/2/3` cycles, with days divisible by 3 → Day 3 (odd/even mode uses day parity)
 2. Each exercise shows an image, or a "No image — click to search" link (Google image search)
 3. Enter reps and weight, click **Next** (or **Finish** on the last one)
 4. Summary screen lists all exercises with reps/weight and total volume

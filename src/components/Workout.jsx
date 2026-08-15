@@ -3,7 +3,7 @@ import { useState } from 'react'
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise`)}`
 
-export default function Workout({ day, exercises, onExit }) {
+export default function Workout({ day, exercises }) {
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState({})
   const [reps, setReps] = useState('')
@@ -44,12 +44,6 @@ export default function Workout({ day, exercises, onExit }) {
         <div className="bg-white rounded-lg shadow p-8 max-w-md w-full text-center">
           <h1 className="text-2xl font-bold text-primary">{day}</h1>
           <p className="mt-2 text-gray-600">No exercises configured for this day.</p>
-          <button
-            onClick={onExit}
-            className="mt-6 w-full bg-primary text-white rounded py-2 font-semibold hover:opacity-90"
-          >
-            Choose another day
-          </button>
         </div>
       </main>
     )
@@ -87,20 +81,12 @@ export default function Workout({ day, exercises, onExit }) {
             </tbody>
           </table>
           <p className="mt-4 text-right font-semibold">Total volume: {totalVolume}</p>
-          <div className="mt-4 flex gap-3">
-            <button
-              onClick={restart}
-              className="flex-1 border border-gray-300 rounded py-2 font-semibold text-gray-600 hover:bg-gray-50"
-            >
-              Start over
-            </button>
-            <button
-              onClick={onExit}
-              className="flex-1 bg-primary text-white rounded py-2 font-semibold hover:opacity-90"
-            >
-              Choose another day
-            </button>
-          </div>
+          <button
+            onClick={restart}
+            className="mt-4 w-full bg-primary text-white rounded py-2 font-semibold hover:opacity-90"
+          >
+            Start over
+          </button>
         </div>
       </main>
     )
