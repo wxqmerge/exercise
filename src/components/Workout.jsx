@@ -318,7 +318,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
                 <input
                   type="number"
                   min="0"
-                  step="any"
+                  step="5"
                   inputMode="decimal"
                   value={weights[i]}
                   onChange={e => setWeights(prev => prev.map((p, j) => (j === i ? e.target.value : p)))}
