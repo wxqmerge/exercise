@@ -205,7 +205,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
   return (
     <main className="min-h-screen bg-[#f5f5f0]">
       <div className="max-w-3xl mx-auto bg-white shadow">
-        <div className="px-4 pt-4">
+        <div className="px-4 pt-4 text-center">
           <p className="text-sm text-gray-500">
             {day} · Exercise {index + 1} of {exercises.length}
           </p>
@@ -215,6 +215,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
           )}
         </div>
 
+        <div className="relative">
         {images[exercise.id] && !imageError ? (
           <div>
             <img
@@ -227,7 +228,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
                 setUrlDraft(images[exercise.id] || '')
               }}
             />
-            <div className="px-4 py-2 flex gap-3">
+            <div className="px-4 py-2 flex gap-3 justify-center">
               <button
                 onClick={removeImage}
                 className="text-xs text-gray-400 hover:text-red-500"
@@ -282,6 +283,23 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
             </div>
           </div>
         )}
+        {index > 0 && (
+          <button
+            onClick={goBack}
+            aria-label="Back"
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 text-white text-2xl leading-none flex items-center justify-center hover:bg-black/60"
+          >
+            ‹
+          </button>
+        )}
+        <button
+          onClick={saveAndNext}
+          aria-label={isLast ? 'Finish' : 'Next'}
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 text-white text-2xl leading-none flex items-center justify-center hover:bg-black/60"
+        >
+          ›
+        </button>
+        </div>
         <input
           ref={fileRef}
           type="file"
@@ -331,22 +349,6 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
           </div>
         </div>
 
-        <div className="px-6 pb-6 flex gap-3">
-          {index > 0 && (
-            <button
-              onClick={goBack}
-              className="px-4 py-2 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
-            >
-              Back
-            </button>
-          )}
-          <button
-            onClick={saveAndNext}
-            className="flex-1 bg-primary text-white rounded py-2 font-semibold hover:opacity-90"
-          >
-            {isLast ? 'Finish' : 'Next'}
-          </button>
-        </div>
       </div>
 
       {zoomed && (

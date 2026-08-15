@@ -141,6 +141,17 @@ describe('App', () => {
     expect(screen.getByText(`${day} · Exercise 2 of ${workout.length}`)).toBeInTheDocument();
   });
 
+  it('goes back to the previous exercise with the left arrow', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText(`${day} · Exercise 2 of ${workout.length}`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText(`${day} · Exercise 1 of ${workout.length}`)).toBeInTheDocument();
+  });
+
   it('shows a summary with saved reps and weight after finishing', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
