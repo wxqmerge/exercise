@@ -34,6 +34,33 @@ describe('App', () => {
     expect(link).toHaveAttribute('href', expect.stringContaining(encodeURIComponent(workout[0].name)));
   });
 
+  it('rejects a link without an image extension', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Image URL'), {
+      target: { value: 'https://example.com/page.html' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByText(/not an image link/i)).toBeInTheDocument();
+    expect(screen.queryByAltText(workout[0].name)).not.toBeInTheDocument();
+  });
+
+  it('removes a saved image', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Image URL'), {
+      target: { value: 'https://example.com/a.gif' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await screen.findByAltText(workout[0].name);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove image' }));
+    expect(screen.getByRole('link', { name: /no image/i })).toBeInTheDocument();
+  });
+
   it('falls back to the paste box when the image fails to load', async () => {
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
     const workout = getDayWorkout(CONFIG.dayMode, day);

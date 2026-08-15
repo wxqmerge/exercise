@@ -7,7 +7,7 @@ import Workout from './components/Workout'
 
 export default function App() {
   const { config, error } = useConfig()
-  const { images, setOverride } = useExerciseImages()
+  const { images, overrides, setOverride, removeOverride } = useExerciseImages()
   const [today] = useState(() => new Date())
 
   if (error) {
@@ -36,7 +36,9 @@ export default function App() {
       day={day}
       exercises={getDayWorkout(config.dayMode, day)}
       images={images}
+      overrides={overrides}
       onSetImage={setOverride}
+      onRemoveImage={removeOverride}
     />
   )
 }

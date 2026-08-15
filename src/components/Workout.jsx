@@ -3,13 +3,25 @@ import { useState } from 'react'
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise`)}`
 
-export default function Workout({ day, exercises, images = {}, onSetImage }) {
+const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+
+const isImageUrl = (url) => {
+  try {
+    const ext = new URL(url, 'http://local').pathname.split('.').pop()?.toLowerCase()
+    return IMAGE_EXTENSIONS.includes(ext)
+  } catch {
+    return false
+  }
+}
+
+export default function Workout({ day, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage }) {
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState({})
   const [reps, setReps] = useState('')
   const [weight, setWeight] = useState('')
   const [urlDraft, setUrlDraft] = useState('')
   const [imageError, setImageError] = useState(false)
+  const [imageHint, setImageHint] = useState('')
 
   const isLast = index === exercises.length - 1
   const finished = index >= exercises.length
@@ -21,6 +33,7 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
     setWeight('')
     setUrlDraft('')
     setImageError(false)
+    setImageHint('')
     setIndex(i => i + 1)
   }
 
@@ -34,6 +47,7 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
     }
     setUrlDraft('')
     setImageError(false)
+    setImageHint('')
     setIndex(i => i - 1)
   }
 
@@ -43,6 +57,7 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
     setWeight('')
     setUrlDraft('')
     setImageError(false)
+    setImageHint('')
     setIndex(0)
   }
 
@@ -104,11 +119,15 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
 
   const saveImage = () => {
     const trimmed = urlDraft.trim()
-    if (trimmed && onSetImage) {
-      onSetImage(exercise.id, trimmed)
-      setUrlDraft('')
-      setImageError(false)
+    if (!trimmed || !onSetImage) return
+    if (!isImageUrl(trimmed)) {
+      setImageHint('Not an image link — use .jpg, .jpeg, .png, .gif or .webp')
+      return
     }
+    onSetImage(exercise.id, trimmed)
+    setUrlDraft('')
+    setImageError(false)
+    setImageHint('')
   }
 
   return (
@@ -120,15 +139,28 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
         <h1 className="mt-1 text-2xl font-bold text-primary">{exercise.name}</h1>
 
         {images[exercise.id] && !imageError ? (
-          <img
-            src={images[exercise.id]}
-            alt={exercise.name}
-            className="mt-4 w-full h-48 object-cover rounded"
-            onError={() => {
-              setImageError(true)
-              setUrlDraft(images[exercise.id] || '')
-            }}
-          />
+          <div className="mt-4">
+            <img
+              src={images[exercise.id]}
+              alt={exercise.name}
+              className="w-full h-48 object-cover rounded"
+              onError={() => {
+                setImageError(true)
+                setUrlDraft(images[exercise.id] || '')
+              }}
+            />
+            {overrides[exercise.id] && (
+              <button
+                onClick={() => {
+                  onRemoveImage(exercise.id)
+                  setImageError(false)
+                }}
+                className="mt-2 text-xs text-gray-400 hover:text-red-500"
+              >
+                Remove image
+              </button>
+            )}
+          </div>
         ) : (
           <div className="mt-4 rounded border-2 border-dashed border-gray-300 p-4 text-center">
             <a
@@ -142,7 +174,10 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
             <div className="mt-3 flex gap-2">
               <input
                 value={urlDraft}
-                onChange={e => setUrlDraft(e.target.value)}
+                onChange={e => {
+                  setUrlDraft(e.target.value)
+                  setImageHint('')
+                }}
                 onKeyDown={e => e.key === 'Enter' && saveImage()}
                 placeholder="Paste image URL…"
                 aria-label="Image URL"
@@ -155,6 +190,7 @@ export default function Workout({ day, exercises, images = {}, onSetImage }) {
                 Save
               </button>
             </div>
+            {imageHint && <p className="mt-2 text-xs text-red-500">{imageHint}</p>}
           </div>
         )}
 

@@ -23,5 +23,13 @@ export function useExerciseImages() {
     setOverrides(prev => ({ ...prev, [id]: url }))
   }
 
-  return { images: { ...serverImages, ...overrides }, setOverride }
+  const removeOverride = (id) => {
+    setOverrides(prev => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }
+
+  return { images: { ...serverImages, ...overrides }, overrides, setOverride, removeOverride }
 }
