@@ -28,7 +28,9 @@ npm run dev:all
 
 ## Environment
 Copy `.env` values from your environment (never committed). Server reads root `.env`:
-`PORT`, `DOMAIN`, `DAY_MODE`, `DAY_COUNT`, `ADMIN_API_KEY`, `NODE_ENV`, `CORS_ORIGINS`.
+`PORT`, `DOMAIN`, `APP_KEY`, `DAY_MODE`, `DAY_COUNT`, `ADMIN_API_KEY`, `NODE_ENV`, `CORS_ORIGINS`.
+
+- `APP_KEY` is required — without it the API returns 503 and nothing works. The app asks for this key on first load (stored in browser localStorage) and sends it with every request.
 
 - `DAY_MODE=odd-even` → workout day is Odd / Even by day-of-year parity
 - `DAY_MODE=numbered` + `DAY_COUNT=3` → workout day is Day 1 / Day 2 / Day 3 by day of year
@@ -39,7 +41,9 @@ Copy `.env` values from your environment (never committed). Server reads root `.
 
 ### Adding an exercise image
 Two ways:
-1. **Paste a link in the app** — on an exercise without an image, paste the image URL into the text box and hit Save. Stored in your browser (localStorage).
-2. **Drop a file** — save any image (jpg/png/gif) into `data/images/` named after the exercise id from `src/data/exercises.local.js` (e.g. `data/images/squat.jpg`). Reload the app — it appears automatically.
-3. Enter reps and weight, click **Next** (or **Finish** on the last one)
-4. Summary screen lists all exercises with reps/weight and total volume
+1. **Paste a link in the app** — on an exercise without an image, paste the image URL and hit Save. The server downloads it into `data/images/`.
+2. **Import a file** — click the small **Import** button and pick an image from your device; it is uploaded to the server.
+3. **Drop a file** — save any image (jpg/png/gif) into `data/images/` named after the exercise id from `src/data/exercises.local.js` (e.g. `data/images/goblet-squat.jpg`). Reload the app — it appears automatically.
+4. Enter reps (3 sets) and weight per set, use the ‹ › arrows to move between exercises
+5. Summary screen lists all exercises with reps/weight and total volume
+6. **Backup** — the Export button downloads `exercise-backup.json` (all images); Import restores it on this or another server

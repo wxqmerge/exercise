@@ -59,7 +59,22 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
 }));
 
+const APP_KEY = process.env.APP_KEY || '';
+
 app.use('/api', apiLimiter);
+
+app.use('/api', (req, res, next) => {
+  if (!APP_KEY) {
+    res.status(503).json({ success: false, error: { message: 'Server not configured: set APP_KEY' } });
+    return;
+  }
+  if (req.headers['x-app-key'] !== APP_KEY) {
+    res.status(401).json({ success: false, error: { message: 'Invalid key' } });
+    return;
+  }
+  next();
+});
+
 app.use(compression());
 app.use(helmet({
   contentSecurityPolicy: {
@@ -310,6 +325,7 @@ if (isMainModule) {
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`✓ Build: ${buildFull}`);
     console.log(`✓ CORS Origins: ${process.env.CORS_ORIGINS || '*'}`);
+    console.log(`✓ App Key: ${process.env.APP_KEY ? 'Enabled' : '⚠️  NOT SET (API will return 503)'}`);
     console.log(`✓ Admin API Key: ${process.env.ADMIN_API_KEY ? 'Enabled' : '⚠️  NOT SET'}`);
     console.log(`========================================\n`);
   });

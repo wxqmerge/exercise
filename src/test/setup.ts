@@ -5,6 +5,7 @@ const DEFAULT_CONFIG = { dayMode: 'numbered', days: ['Day 1', 'Day 2', 'Day 3'] 
 
 const mockData = {
   config: { ...DEFAULT_CONFIG },
+  configStatus: 200,
   images: {},
   imagesSaveResult: { ok: true },
 };
@@ -12,6 +13,13 @@ const mockData = {
 const createFetchMock = () => {
   return vi.fn((url, options) => {
     if (typeof url === 'string' && url === '/api/config') {
+      if (mockData.configStatus !== 200) {
+        return Promise.resolve({
+          ok: false,
+          status: mockData.configStatus,
+          json: () => Promise.resolve({ success: false, error: { message: 'Invalid key' } }),
+        });
+      }
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve(mockData.config),
@@ -101,9 +109,11 @@ globalThis.fetch = createFetchMock();
 beforeEach(() => {
   globalThis.fetch = createFetchMock();
   mockData.config = { ...DEFAULT_CONFIG };
+  mockData.configStatus = 200;
   mockData.images = {};
   mockData.imagesSaveResult = { ok: true };
   localStorage.clear();
+  localStorage.setItem('exercise-key', 'test-key');
 });
 
 Object.defineProperty(window, 'location', {

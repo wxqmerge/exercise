@@ -7,6 +7,32 @@ import { getDayForDate } from '../utils/day';
 const CONFIG = { dayMode: 'numbered', days: ['Day 1', 'Day 2', 'Day 3'] };
 
 describe('App', () => {
+  it('shows the key gate when no key is stored', async () => {
+    localStorage.removeItem('exercise-key');
+    render(<App />);
+    expect(await screen.findByText(/enter your key to continue/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Key')).toBeInTheDocument();
+  });
+
+  it('unlocks the app after entering the key', async () => {
+    localStorage.removeItem('exercise-key');
+    render(<App />);
+    await screen.findByText(/enter your key to continue/i);
+    fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'my-key' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }));
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    expect(await screen.findByText(`${day} · Exercise 1 of ${workout.length}`)).toBeInTheDocument();
+  });
+
+  it('offers to change the key when the server rejects it', async () => {
+    globalThis.__TEST_MOCK_DATA__.configStatus = 401;
+    render(<App />);
+    expect(await screen.findByText(/invalid key/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Change key' }));
+    expect(await screen.findByText(/enter your key to continue/i)).toBeInTheDocument();
+  });
+
   it('starts directly on the workout for the current Julian day', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
@@ -147,7 +173,7 @@ describe('App', () => {
     const workout = getDayWorkout(CONFIG.dayMode, day);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
-    expect(globalThis.fetch).toHaveBeenCalledWith('/api/export');
+    expect((globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.some(c => c[0] === '/api/export')).toBe(true);
   });
 
   it('imports a backup file', async () => {

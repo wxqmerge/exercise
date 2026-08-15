@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { apiFetch } from '../utils/api'
 
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise`)}`
@@ -137,7 +138,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
     }
     setSaving(true)
     try {
-      const res = await fetch('/api/images/save', {
+      const res = await apiFetch('/api/images/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ exerciseId: exercise.id, url: trimmed }),
@@ -173,7 +174,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
         reader.onerror = reject
         reader.readAsDataURL(file)
       })
-      const res = await fetch('/api/images/upload', {
+      const res = await apiFetch('/api/images/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ exerciseId: exercise.id, dataUrl }),
@@ -195,7 +196,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
     if (saving) return
     setSaving(true)
     try {
-      const res = await fetch('/api/export')
+      const res = await apiFetch('/api/export')
       if (!res.ok) {
         setImageHint('Export failed')
         return
@@ -226,7 +227,7 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
         reader.readAsText(file)
       })
       const data = JSON.parse(text)
-      const res = await fetch('/api/import', {
+      const res = await apiFetch('/api/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -251,8 +252,8 @@ export default function Workout({ day, exercises, images = {}, overrides = {}, o
   const removeImage = async () => {
     const current = images[exercise.id]
     if (!current) return
-    if (current.startsWith('/api/images/')) {
-      await fetch(current, { method: 'DELETE' }).catch(() => {})
+      if (current.startsWith('/api/images/')) {
+        await apiFetch(current, { method: 'DELETE' }).catch(() => {})
       await onRefetchImages()
     } else if (overrides[exercise.id]) {
       onRemoveImage(exercise.id)

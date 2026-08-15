@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { apiFetch } from '../utils/api'
 
 export function useImages() {
   const [images, setImages] = useState({})
@@ -6,7 +7,7 @@ export function useImages() {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/images')
+    apiFetch('/api/images')
       .then(res => (res.ok ? res.json() : Promise.resolve(null)))
       .then(data => {
         if (!cancelled && data) setImages(data)

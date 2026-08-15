@@ -1,15 +1,29 @@
 import { useEffect, useState } from 'react'
+import { apiFetch, getApiKey } from '../utils/api'
 
 export function useConfig() {
   const [config, setConfig] = useState(null)
   const [error, setError] = useState(null)
+  const [invalidKey, setInvalidKey] = useState(false)
 
   useEffect(() => {
+    const key = getApiKey()
+    if (!key) return
     let cancelled = false
-    fetch('/api/config')
-      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    apiFetch('/api/config')
+      .then(res => {
+        if (res.status === 401) {
+          if (!cancelled) {
+            setInvalidKey(true)
+            setError('Invalid key')
+          }
+          return null
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
       .then(data => {
-        if (!cancelled) setConfig(data)
+        if (!cancelled && data) setConfig(data)
       })
       .catch(err => {
         if (!cancelled) setError(err.message)
@@ -19,5 +33,5 @@ export function useConfig() {
     }
   }, [])
 
-  return { config, error }
+  return { config, error, invalidKey }
 }
