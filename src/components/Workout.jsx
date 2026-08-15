@@ -50,6 +50,9 @@ export default function Workout({ day, days = [], dayMode = 'numbered', onDayCha
     setIndex(i => i + 1)
   }
 
+  const nudgeAll = (setter, delta) =>
+    setter(prev => prev.map(p => (p === '' && delta < 0 ? p : String(Math.max(0, (Number(p) || 0) + delta)))))
+
   const changeDay = (newDay) => {
     if (newDay === day || !onDayChange) return
     setEntries(loadDayEntries(newDay))
@@ -443,14 +446,16 @@ export default function Workout({ day, days = [], dayMode = 'numbered', onDayCha
         {imageHint && <p className="px-4 pb-2 text-xs text-red-500">{imageHint}</p>}
 
         <div className="px-6 pb-2">
-          <div className="grid grid-cols-[3rem_1fr_1fr] gap-2">
+          <div className="grid grid-cols-[3rem_1fr_auto_1fr_auto] gap-2">
             <span />
             <span className="text-sm text-gray-600">Reps</span>
+            <span />
             <span className="text-sm text-gray-600">Weight</span>
+            <span />
           </div>
           <div className="mt-1 space-y-2">
             {reps.map((r, i) => (
-              <div key={i} className="grid grid-cols-[3rem_1fr_1fr] gap-2 items-center">
+              <div key={i} className="grid grid-cols-[3rem_1fr_auto_1fr_auto] gap-2 items-center">
                 <span className="text-sm text-gray-500">Set {i + 1}</span>
                 <input
                   type="number"
@@ -462,17 +467,61 @@ export default function Workout({ day, days = [], dayMode = 'numbered', onDayCha
                   className="w-full border border-gray-300 rounded px-3 py-2"
                   placeholder="0"
                 />
+                <span className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => nudgeAll(setReps, -1)}
+                    aria-label="Decrease all reps"
+                    className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => nudgeAll(setReps, 1)}
+                    aria-label="Increase all reps"
+                    className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
+                  >
+                    +
+                  </button>
+                </span>
                 <input
                   type="number"
                   min="0"
                   step="5"
                   inputMode="decimal"
                   value={weights[i]}
-                  onChange={e => setWeights(prev => prev.map((p, j) => (j === i ? e.target.value : p)))}
+                  onChange={e => {
+                    const next = e.target.value
+                    setWeights(prev => {
+                      if (prev[i] === '' && next !== '') {
+                        return prev.map(p => (p === '' ? next : p))
+                      }
+                      return prev.map((p, j) => (j === i ? next : p))
+                    })
+                  }}
                   aria-label={`Set ${i + 1} weight`}
                   className="w-full border border-gray-300 rounded px-3 py-2"
                   placeholder="0"
                 />
+                <span className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => nudgeAll(setWeights, -5)}
+                    aria-label="Decrease all weights"
+                    className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => nudgeAll(setWeights, 5)}
+                    aria-label="Increase all weights"
+                    className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
+                  >
+                    +
+                  </button>
+                </span>
               </div>
             ))}
           </div>

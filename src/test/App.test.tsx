@@ -191,6 +191,37 @@ describe('App', () => {
     expect(screen.getByText(`${day} · Exercise 2 of ${workout.length}`)).toBeInTheDocument();
   });
 
+  it('fills the entered weight into the other empty sets', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
+    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(50);
+    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(50);
+    fireEvent.change(screen.getByLabelText('Set 2 weight'), { target: { value: '45' } });
+    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(50);
+  });
+
+  it('adjusts every set with the reps and weight buttons', async () => {
+    render(<App />);
+    const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
+    const workout = getDayWorkout(CONFIG.dayMode, day);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Increase all weights' })[0]);
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(5);
+    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(5);
+    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(5);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Increase all reps' })[0]);
+    expect(screen.getByLabelText('Set 1 reps')).toHaveValue(11);
+    expect(screen.getByLabelText('Set 2 reps')).toHaveValue(11);
+    expect(screen.getByLabelText('Set 3 reps')).toHaveValue(11);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Decrease all reps' })[0]);
+    expect(screen.getByLabelText('Set 1 reps')).toHaveValue(10);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Decrease all weights' })[0]);
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(0);
+  });
+
   it('exports a backup file', async () => {
     render(<App />);
     const day = getDayForDate(new Date(), CONFIG.dayMode, CONFIG.days);
@@ -300,8 +331,8 @@ describe('App', () => {
     }
     expect(screen.getByText('Workout complete')).toBeInTheDocument();
     expect(screen.getAllByText('10 / 10 / 10').length).toBe(workout.length);
-    expect(screen.getAllByText('50').length).toBe(workout.length);
-    expect(screen.getByText(`Total volume: ${workout.length * 500}`)).toBeInTheDocument();
+    expect(screen.getAllByText('50 / 50 / 50').length).toBe(workout.length);
+    expect(screen.getByText(`Total volume: ${workout.length * 1500}`)).toBeInTheDocument();
   });
 
   it('downloads the workout as a .tab file', async () => {
@@ -317,7 +348,7 @@ describe('App', () => {
     );
     const text = await ((URL.createObjectURL as unknown as { mock: { calls: unknown[][] } }).mock.calls[0][0] as Blob).text();
     expect(text.split('\n')[0]).toBe('Day\tExercise\tSet 1\tSet 2\tSet 3');
-    expect(text).toContain(`${day}\t${workout[0].name}\t50/10\t0/10\t0/10`);
+    expect(text).toContain(`${day}\t${workout[0].name}\t50/10\t50/10\t50/10`);
   });
 
   describe('Settings', () => {
@@ -378,7 +409,7 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
       await screen.findByText('All workouts');
       fireEvent.change(screen.getByLabelText('Day mode'), { target: { value: 'numbered' } });
-      expect(screen.getByText('50/10/0/10/0/10')).toBeInTheDocument();
+      expect(screen.getByText('50/10/50/10/50/10')).toBeInTheDocument();
     });
 
     it('shows the last saved weight/rep for each exercise', async () => {
