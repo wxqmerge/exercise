@@ -277,6 +277,46 @@ describe('App', () => {
     expect(screen.getByLabelText('Set 3 weight')).toHaveValue(50);
   });
 
+  it('fills the other empty sets only after the weight has at least two digits', async () => {
+    render(<App />);
+    const { day, workout } = todayWorkout();
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '5' } });
+    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(null);
+    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(null);
+    fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
+    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(50);
+    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(50);
+  });
+
+  it('snaps weights to 5 lb increments on blur and on save', async () => {
+    render(<App />);
+    const { day, workout } = todayWorkout();
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    const input = screen.getByLabelText('Set 2 weight');
+    fireEvent.change(input, { target: { value: '12' } });
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(12);
+    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(12);
+    fireEvent.blur(input);
+    expect(input).toHaveValue(10);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    const stored = JSON.parse(localStorage.getItem('exercise-entries'));
+    expect(stored['dumbbells'][day][workout[0].id].weights).toEqual(['10', '10', '10']);
+  });
+
+  it('snaps saved non-multiple weights on load', async () => {
+    const { day, workout } = todayWorkout();
+    localStorage.setItem(
+      'exercise-entries',
+      JSON.stringify({ dumbbells: { [day]: { [workout[0].id]: { reps: ['10', '10', '10'], weights: ['12', '7', ''] } } } }),
+    );
+    render(<App />);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(10);
+    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(5);
+    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(null);
+  });
+
   it('adjusts every set with the reps and weight buttons', async () => {
     render(<App />);
     const { day, workout } = todayWorkout();

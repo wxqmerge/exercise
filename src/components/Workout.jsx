@@ -12,6 +12,15 @@ const formSet = (entry, key, fallback) => {
   return [0, 1, 2].map(i => (values && values[i] != null ? String(values[i]) : fallback[i]))
 }
 
+const snapWeight = (value) => {
+  const n = Number(value)
+  if (value == null || value === '' || !Number.isFinite(n) || n < 0) return ''
+  const snapped = Math.round(n / 5) * 5
+  return snapped === 0 ? '' : String(snapped)
+}
+
+const weightSet = (entry) => formSet(entry, 'weights', DEFAULT_WEIGHTS).map(snapWeight)
+
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise gif`)}&tbs=iftype:animated`
 
@@ -66,7 +75,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState(() => loadDayEntries(workoutType, day))
   const [reps, setReps] = useState(() => formSet(entries[exercises[0]?.id], 'reps', DEFAULT_REPS))
-  const [weights, setWeights] = useState(() => formSet(entries[exercises[0]?.id], 'weights', DEFAULT_WEIGHTS))
+  const [weights, setWeights] = useState(() => weightSet(entries[exercises[0]?.id]))
   const [urlDraft, setUrlDraft] = useState('')
   const [imageError, setImageError] = useState(false)
   const [imageHint, setImageHint] = useState('')
@@ -80,7 +89,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
 
   const saveAndNext = () => {
     const exercise = exercises[index]
-    const nextEntries = { ...entries, [exercise.id]: { reps: [...reps], weights: [...weights] } }
+    const nextEntries = { ...entries, [exercise.id]: { reps: [...reps], weights: weights.map(snapWeight) } }
     setEntries(nextEntries)
     persistDayEntries(workoutType, day, nextEntries)
     setReps([...DEFAULT_REPS])
@@ -91,6 +100,11 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
 
   const nudgeAll = (setter, delta) =>
     setter(prev => prev.map(p => (p === '' && delta < 0 ? p : String(Math.max(0, (Number(p) || 0) + delta)))))
+
+  const nudgeWeights = (delta) =>
+    setWeights(prev =>
+      prev.map(p => (p === '' && delta < 0 ? p : String(Math.max(0, Math.round((Number(p) || 0) / 5) * 5 + delta)))),
+    )
 
   const resetForm = () => {
     setUrlDraft('')
@@ -105,7 +119,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     const first = applySwaps(getDayWorkout(type, dayMode, dayName), dayName, exerciseSwaps, type)[0]
     const saved = first ? all[first.id] : null
     setReps(formSet(saved, 'reps', DEFAULT_REPS))
-    setWeights(formSet(saved, 'weights', DEFAULT_WEIGHTS))
+    setWeights(weightSet(saved))
     resetForm()
     setIndex(0)
   }
@@ -127,7 +141,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     const prev = exercises[index - 1]
     const saved = entries[prev.id]
     setReps(formSet(saved, 'reps', DEFAULT_REPS))
-    setWeights(formSet(saved, 'weights', DEFAULT_WEIGHTS))
+    setWeights(weightSet(saved))
     resetForm()
     setIndex(i => i - 1)
   }
@@ -525,13 +539,13 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
                   value={weights[i]}
                   onChange={e => {
                     const next = e.target.value
-                    setWeights(prev => {
-                      if (prev[i] === '' && next !== '') {
-                        return prev.map(p => (p === '' ? next : p))
-                      }
-                      return prev.map((p, j) => (j === i ? next : p))
-                    })
+                    setWeights(prev =>
+                      next.length >= 2
+                        ? prev.map((p, j) => (j === i ? next : p === '' ? next : p))
+                        : prev.map((p, j) => (j === i ? next : p)),
+                    )
                   }}
+                  onBlur={() => setWeights(prev => prev.map((p, j) => (j === i ? snapWeight(p) : p)))}
                   aria-label={`Set ${i + 1} weight`}
                   className="w-full border border-gray-300 rounded px-3 py-2"
                   placeholder="0"
@@ -539,7 +553,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
                 <span className="flex gap-1">
                   <button
                     type="button"
-                    onClick={() => nudgeAll(setWeights, -5)}
+                    onClick={() => nudgeWeights(-5)}
                     aria-label="Decrease all weights"
                     className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
                   >
@@ -547,7 +561,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
                   </button>
                   <button
                     type="button"
-                    onClick={() => nudgeAll(setWeights, 5)}
+                    onClick={() => nudgeWeights(5)}
                     aria-label="Increase all weights"
                     className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
                   >

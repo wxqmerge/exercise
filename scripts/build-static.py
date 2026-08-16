@@ -24,7 +24,35 @@ BASE_CSS = [
     "article img{display:block;width:100%;max-height:340px;object-fit:contain;background:#fff}",
     ".body{padding:12px 14px 14px}h3{margin:0 0 6px;font-size:1.02rem}p{margin:0;color:#45505f;font-size:.93rem}",
     ".noimg{display:flex;align-items:center;justify-content:center;height:160px;color:#9aa5b1;font-size:.95rem;background:#fafbfc}",
+    ".log{margin-top:10px;padding-top:10px;border-top:1px dashed #e3e7ec;font-size:.85rem;font-weight:600;color:#1c2430}",
+    ".log:empty{display:none}",
 ]
+
+LOG_JS = (
+    "<script>"
+    "(function(){"
+    "var raw;"
+    "try { raw = JSON.parse(localStorage.getItem('exercise-entries') || '{}'); } catch (e) { raw = {}; }"
+    "var pick = function (arr) {"
+    "var v = '';"
+    "(arr || []).forEach(function (x) { var s = String(x); if (s) v = s; });"
+    "return v;"
+    "};"
+    "document.querySelectorAll('.log').forEach(function (el) {"
+    "var type = raw[el.getAttribute('data-type')];"
+    "var day = type && type[el.getAttribute('data-day')];"
+    "var ex = day && day[el.getAttribute('data-ex')];"
+    "if (!ex) return;"
+    "var parts = [];"
+    "var w = pick(ex.weights);"
+    "var r = pick(ex.reps);"
+    "if (w) parts.push('Weight ' + w);"
+    "if (r) parts.push('Reps ' + r);"
+    "if (parts.length) el.textContent = parts.join('  ·  ');"
+    "});"
+    "})();"
+    "</script>"
+)
 
 
 def load_programs():
@@ -201,9 +229,12 @@ def build_page(routine, files, chosen) -> str:
                 img_tag = '<div class="noimg">No image yet</div>'
             parts.append(
                 f'<article>{img_tag}'
-                f'<div class="body"><h3>{name}</h3><p>{desc}</p></div></article>'
+                f'<div class="body"><h3>{name}</h3><p>{desc}</p>'
+                f'<p class="log" data-type="{routine["slug"]}" data-day="{day}" data-ex="{ex_id}"></p>'
+                f'</div></article>'
             )
         parts.append("</section>")
+    parts.append(LOG_JS)
     parts.append("</main></body></html>")
     return "\n".join(parts)
 
