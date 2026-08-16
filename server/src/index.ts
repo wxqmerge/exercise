@@ -198,7 +198,7 @@ const readEntriesFile = (): Record<string, any> => {
 };
 
 const isValueArray = (v: unknown) =>
-  Array.isArray(v) && v.every(x => typeof x === 'string' || typeof x === 'number');
+  Array.isArray(v) && v.length <= 3 && v.every(x => typeof x === 'string' || typeof x === 'number');
 
 app.get('/api/entries', (_req, res) => {
   res.json(readEntriesFile());
@@ -253,6 +253,8 @@ const IMAGE_DIR = path.join(__dirname, '../../data/images');
 if (!fs.existsSync(IMAGE_DIR)) {
   fs.mkdirSync(IMAGE_DIR, { recursive: true });
 }
+
+app.use('/api/images', express.static(IMAGE_DIR));
 
 const IMAGE_EXT_BY_TYPE: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -416,8 +418,6 @@ app.delete('/api/images/:file', (req, res) => {
   }
   res.json({ success: true });
 });
-
-app.use('/api/images', express.static(IMAGE_DIR));
 
 if (isDev) {
   app.use((_req, _res, next) => {

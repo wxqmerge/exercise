@@ -11,7 +11,12 @@ export const programExercises = (typeId) => {
 
 export const applySwaps = (exercises, day, swaps, typeId) => {
   const daySwaps = swaps && typeof swaps === 'object' ? swaps[day] : undefined
-  if (!daySwaps) return exercises
+  if (!daySwaps) return exercises.map(ex => ({ ...ex, originalId: ex.id }))
   const byId = new Map(programExercises(typeId).map(ex => [ex.id, ex]))
-  return exercises.map(ex => byId.get(daySwaps[ex.id]) || ex)
+  return exercises.map(ex => {
+    const replId = daySwaps[ex.id]
+    const replEx = replId ? byId.get(replId) : null
+    const finalEx = replEx || ex
+    return { ...finalEx, originalId: ex.id }
+  })
 }

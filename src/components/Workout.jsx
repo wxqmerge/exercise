@@ -72,10 +72,11 @@ const makeSelect = (value, onChange, options, ariaLabel) => (
 
 export default function Workout({ day, days = [], dayMode = 'numbered', workoutType = '', workoutTypes = [], exerciseSwaps = {}, onTypeChange, onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
   const workoutName = workoutTypes.find(t => t.id === workoutType)?.name || workoutType
+  const getStorageKey = (ex) => ex?.originalId || ex?.id
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState(() => loadDayEntries(workoutType, day))
-  const [reps, setReps] = useState(() => formSet(entries[exercises[0]?.id], 'reps', DEFAULT_REPS))
-  const [weights, setWeights] = useState(() => weightSet(entries[exercises[0]?.id]))
+  const [reps, setReps] = useState(() => formSet(entries[getStorageKey(exercises[0])], 'reps', DEFAULT_REPS))
+  const [weights, setWeights] = useState(() => weightSet(entries[getStorageKey(exercises[0])]))
   const [urlDraft, setUrlDraft] = useState('')
   const [imageError, setImageError] = useState(false)
   const [imageHint, setImageHint] = useState('')
@@ -90,16 +91,26 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
   const persistForm = (nextReps, nextWeights) => {
     const exercise = exercises[index]
     if (!exercise) return
-    const updated = { ...entries, [exercise.id]: { reps: [...nextReps], weights: nextWeights.map(snapWeight) } }
-    setEntries(updated)
-    persistDayEntries(workoutType, day, updated)
-    syncToServer()
+    const key = getStorageKey(exercise)
+    setEntries(prev => {
+      const updated = { ...prev, [key]: { reps: [...nextReps], weights: nextWeights.map(snapWeight) } }
+      persistDayEntries(workoutType, day, updated)
+      syncToServer()
+      return updated
+    })
   }
 
   const saveAndNext = () => {
-    persistForm(reps, weights)
+    const exercise = exercises[index]
+    if (!exercise) return
+    const key = getStorageKey(exercise)
+    const updatedEntries = { ...entries, [key]: { reps: [...reps], weights: weights.map(snapWeight) } }
+    setEntries(updatedEntries)
+    persistDayEntries(workoutType, day, updatedEntries)
+    syncToServer()
     const nextExercise = exercises[index + 1]
-    const saved = nextExercise ? entries[nextExercise.id] : null
+    const nextKey = nextExercise ? getStorageKey(nextExercise) : null
+    const saved = nextKey ? updatedEntries[nextKey] : null
     setReps(nextExercise ? formSet(saved, 'reps', DEFAULT_REPS) : [...DEFAULT_REPS])
     setWeights(nextExercise ? weightSet(saved) : [...DEFAULT_WEIGHTS])
     resetForm()
@@ -129,7 +140,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     const all = loadDayEntries(type, dayName)
     setEntries(all)
     const first = applySwaps(getDayWorkout(type, dayMode, dayName), dayName, exerciseSwaps, type)[0]
-    const saved = first ? all[first.id] : null
+    const saved = first ? all[getStorageKey(first)] : null
     setReps(formSet(saved, 'reps', DEFAULT_REPS))
     setWeights(weightSet(saved))
     resetForm()
@@ -338,7 +349,8 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     for (const d of days) {
       const dayEntries = all[workoutType]?.[d] || {}
       for (const ex of applySwaps(getDayWorkout(workoutType, dayMode, d), d, exerciseSwaps, workoutType)) {
-        const e = dayEntries[ex.id]
+        const key = getStorageKey(ex)
+        const e = dayEntries[key]
         lines.push([
           d,
           ex.name,

@@ -88,7 +88,7 @@ function WorkoutApp({ onKeyCleared }) {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workoutType: newType }),
-    }).catch(() => {})
+    }).then(() => refresh()).catch(() => {})
   }
 
   if (view === 'settings') {

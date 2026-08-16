@@ -65,12 +65,17 @@ export const clearDayEntries = (type, day) => {
 
 // Push the full local map to the server (replaces the server copy).
 // Best effort: an offline push just never arrives; the next push is a full map.
-export const syncToServer = () =>
-  apiFetch('/api/entries', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(loadAllEntries()),
-  }).catch(() => {})
+let syncTimer = null
+export const syncToServer = () => {
+  if (syncTimer) clearTimeout(syncTimer)
+  syncTimer = setTimeout(() => {
+    apiFetch('/api/entries', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(loadAllEntries()),
+    }).catch(() => {})
+  }, 300)
+}
 
 // Pull server entries and merge them under the local ones (local wins;
 // server values fill missing entries/fields). Best effort.
