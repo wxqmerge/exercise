@@ -73,10 +73,17 @@ const makeSelect = (value, onChange, options, ariaLabel) => (
 export default function Workout({ day, days = [], dayMode = 'numbered', workoutType = '', workoutTypes = [], exerciseSwaps = {}, onTypeChange, onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
   const workoutName = workoutTypes.find(t => t.id === workoutType)?.name || workoutType
   const getStorageKey = (ex) => ex?.originalId || ex?.id
+  const loadFormFromEntries = (exercise, entriesMap) => {
+    const saved = exercise ? entriesMap[getStorageKey(exercise)] : null
+    return {
+      reps: formSet(saved, 'reps', DEFAULT_REPS),
+      weights: weightSet(saved)
+    }
+  }
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState(() => loadDayEntries(workoutType, day))
-  const [reps, setReps] = useState(() => formSet(entries[getStorageKey(exercises[0])], 'reps', DEFAULT_REPS))
-  const [weights, setWeights] = useState(() => weightSet(entries[getStorageKey(exercises[0])]))
+  const [reps, setReps] = useState(() => loadFormFromEntries(exercises[0], entries).reps)
+  const [weights, setWeights] = useState(() => loadFormFromEntries(exercises[0], entries).weights)
   const [urlDraft, setUrlDraft] = useState('')
   const [imageError, setImageError] = useState(false)
   const [imageHint, setImageHint] = useState('')
@@ -109,10 +116,9 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     persistDayEntries(workoutType, day, updatedEntries)
     syncToServer()
     const nextExercise = exercises[index + 1]
-    const nextKey = nextExercise ? getStorageKey(nextExercise) : null
-    const saved = nextKey ? updatedEntries[nextKey] : null
-    setReps(nextExercise ? formSet(saved, 'reps', DEFAULT_REPS) : [...DEFAULT_REPS])
-    setWeights(nextExercise ? weightSet(saved) : [...DEFAULT_WEIGHTS])
+    const { reps: r, weights: w } = loadFormFromEntries(nextExercise, updatedEntries)
+    setReps(r)
+    setWeights(w)
     resetForm()
     setIndex(i => i + 1)
   }
@@ -140,9 +146,9 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     const all = loadDayEntries(type, dayName)
     setEntries(all)
     const first = applySwaps(getDayWorkout(type, dayMode, dayName), dayName, exerciseSwaps, type)[0]
-    const saved = first ? all[getStorageKey(first)] : null
-    setReps(formSet(saved, 'reps', DEFAULT_REPS))
-    setWeights(weightSet(saved))
+    const { reps: r, weights: w } = loadFormFromEntries(first, all)
+    setReps(r)
+    setWeights(w)
     resetForm()
     setIndex(0)
   }
