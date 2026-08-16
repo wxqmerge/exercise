@@ -51,7 +51,7 @@ data/images/*
 !data/images/.gitkeep
 
 # Generated static app (rebuild with scripts/build-static.py)
-static/
+exercise/
 
 # Temp
 tmp/

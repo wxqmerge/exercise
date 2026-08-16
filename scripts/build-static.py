@@ -9,7 +9,7 @@ from PIL import Image
 
 REPO = Path(__file__).resolve().parent.parent
 IMAGES = REPO / "data" / "images"
-OUT_DIR = REPO / "static"
+OUT_DIR = REPO / "exercise"
 MAX_DIM = 512
 WHITE_T = 245
 MAX_FRAMES = 12
