@@ -9,6 +9,8 @@ import Workout from './components/Workout'
 import Settings from './components/Settings'
 import KeyGate from './components/KeyGate'
 
+const WORKOUT_TYPES = Object.entries(PROGRAMS).map(([id, p]) => ({ id, name: p.name }))
+
 function WorkoutApp({ onKeyCleared }) {
   const { config, error, invalidKey, refresh } = useConfig()
   const { images, overrides, setOverride, removeOverride, refetch } = useExerciseImages()
@@ -28,12 +30,19 @@ function WorkoutApp({ onKeyCleared }) {
         <div className="bg-white rounded-lg shadow p-8 max-w-md w-full text-center">
           <h1 className="text-2xl font-bold text-primary">Cannot load workout config</h1>
           <p className="mt-2 text-gray-600">{error} — is the API server running?</p>
-          {invalidKey && (
+          {invalidKey ? (
             <button
               onClick={changeKey}
               className="mt-4 w-full bg-primary text-white rounded py-2 font-semibold hover:opacity-90"
             >
               Change key
+            </button>
+          ) : (
+            <button
+              onClick={refresh}
+              className="mt-4 w-full bg-primary text-white rounded py-2 font-semibold hover:opacity-90"
+            >
+              Retry
             </button>
           )}
         </div>
@@ -74,7 +83,7 @@ function WorkoutApp({ onKeyCleared }) {
       <Settings
         config={config}
         workoutType={type}
-        workoutTypes={Object.entries(PROGRAMS).map(([id, p]) => ({ id, name: p.name }))}
+        workoutTypes={WORKOUT_TYPES}
         onTypeChange={changeType}
         onSaved={data => {
           if (data?.days) refresh()
@@ -90,10 +99,11 @@ function WorkoutApp({ onKeyCleared }) {
       days={config.days}
       dayMode={config.dayMode}
       workoutType={type}
-      workoutTypes={Object.entries(PROGRAMS).map(([id, p]) => ({ id, name: p.name }))}
+      workoutTypes={WORKOUT_TYPES}
       onTypeChange={changeType}
       onDayChange={setSelectedDay}
       exercises={applySwaps(getDayWorkout(type, config.dayMode, day), day, config.exerciseSwaps, type)}
+      exerciseSwaps={config.exerciseSwaps}
       images={images}
       overrides={overrides}
       onSetImage={setOverride}

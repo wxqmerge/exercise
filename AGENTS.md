@@ -2,8 +2,7 @@
 
 ## Repo Layout
 - `server/`: Express/TS API server
-- `shared/types/`: Shared TypeScript interfaces, compiled to JS via `scripts/compile-shared.js`
-- `scripts/`: Build helpers (`compile-shared.js`, `patch-shared-imports.js`, `flatten-server-dist.js`)
+- `scripts/`: Build helpers (`flatten-server-dist.js`, `build-static.py`)
 - `data/images/`: User-picked exercise images (never commit)
 - **Never commit**: `.env*`, `server/.env`, `node_modules/`, `dist/`, `server/dist/`, `data/`, `src/data/exercises.local.js`
 
@@ -42,7 +41,7 @@ The default day is derived from the Julian date (day of year) in `src/utils/day.
 - `numbered`: `days[(doy - 1) mod N]` — doy divisible by 3 → Day 3
 - `odd-even`: odd doy → Odd, even doy → Even
 
-A Day pulldown (bottom row of the workout screen and the summary screen) overrides the auto day for the session (`selectedDay` in `App.jsx`; not persisted). Workout entries are stored per type and day in localStorage (`exercise-entries`: `{ [workoutType]: { [day]: { [exerciseId]: { reps, weights } } } }`), saved on Next/Finish, cleared by "Start over". Legacy stores keyed by day only are auto-migrated under the `dumbbells` type on read.
+A Day pulldown (bottom row of the workout screen and the summary screen) overrides the auto day for the session (`selectedDay` in `App.jsx`; not persisted). Workout entries are stored per type and day in localStorage (`exercise-entries`: `{ [workoutType]: { [day]: { [exerciseId]: { reps, weights } } } }`), saved on Next/Finish, cleared by "Start over". Legacy stores keyed by day only are auto-migrated under the `dumbbells` type on read. The reps/weight form shows the saved values for the first exercise on mount and after a day/type change (so Next without edits is a no-op); "Back" restores the previous exercise's saved values or resets to defaults. The config error screen offers a Retry button for non-401 failures.
 
 ### Workout Types (Multiple Routines)
 Programs live in `src/data/exercises.local.js` as `PROGRAMS: { [typeId]: { name, ODD_EVEN_WORKOUTS, NUMBERED_WORKOUTS } }` (currently `dumbbells` + `hotel`; `hotel` is numbered-only). `src/data/exercises.js` exports `PROGRAMS`, `DEFAULT_TYPE`, `getProgram(typeId)`, and `getDayWorkout(typeId, dayMode, day)`.
@@ -57,12 +56,10 @@ Programs live in `src/data/exercises.local.js` as `PROGRAMS: { [typeId]: { name,
 - Applied client-side in `src/utils/swaps.js` (`applySwaps`): the workout screen, entries, images, and the `.tab` export all use the replacement exercise (keyed by its id). Unknown replacement ids fall back to the original.
 - Swaps are keyed by day name, so they only apply while that day exists in the current mode (e.g. an "Odd" swap is inert in numbered mode).
 
-### Shared Types Compilation
-`server/package.json` build script runs 4 steps in order:
-1. `compile-shared.js` — copies TS to temp dir, compiles with tsc
-2. `npx tsc` — TypeScript compilation
-3. `patch-shared-imports.js` — adds `.js` extensions to relative imports
-4. `flatten-server-dist.js` — flattens nested output
+### Server Build
+`server/package.json` build script runs 2 steps in order:
+1. `npx tsc` — TypeScript compilation (rootDir is the repo root, so output nests at `server/dist/server/src/`)
+2. `flatten-server-dist.js` — flattens that nested output to `server/dist/` (package main is `dist/index.js`)
 
 ## API Quirks
 - All `/api/*` endpoints require the `X-App-Key` header matching `APP_KEY` when `APP_KEY` is set (401 on mismatch); when `APP_KEY` is empty the API is open
@@ -88,4 +85,4 @@ The deploy directory name must match the service name; the frontend is served at
 - Vitest 4 + jsdom + testing-library
 - Test setup in `src/test/setup.ts` re-mocks `fetch` per test via `beforeEach`
 - `globalThis.__TEST_MOCK_DATA__` exposes mock data for test modifications
-- ESLint ignores `server/`, `scripts/`, `shared/` — only lints `src/`
+- ESLint ignores `server/` and `scripts/` — only lints `src/`

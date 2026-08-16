@@ -4,29 +4,31 @@
 
 const ex = (id, name, description) => ({ id, name, description })
 
+const SAMPLE_DESC = 'Perform this sample exercise with control and steady breathing.'
+const sampleA = ex('sample-a', 'Sample Exercise A', SAMPLE_DESC)
+const sampleB = ex('sample-b', 'Sample Exercise B', SAMPLE_DESC)
+const sampleC = ex('sample-c', 'Sample Exercise C', SAMPLE_DESC)
+
 const SAMPLE = {
   dumbbells: {
     name: 'Dumbbells',
     ODD_EVEN_WORKOUTS: {
-      Odd: [
-        ex('sample-a', 'Sample Exercise A', 'Perform this sample exercise with control and steady breathing.'),
-        ex('sample-b', 'Sample Exercise B', 'Perform this sample exercise with control and steady breathing.'),
-      ],
-      Even: [ex('sample-c', 'Sample Exercise C', 'Perform this sample exercise with control and steady breathing.')],
+      Odd: [sampleA, sampleB],
+      Even: [sampleC],
     },
     NUMBERED_WORKOUTS: {
-      1: [ex('sample-a', 'Sample Exercise A', 'Perform this sample exercise with control and steady breathing.')],
-      2: [ex('sample-b', 'Sample Exercise B', 'Perform this sample exercise with control and steady breathing.')],
-      3: [ex('sample-c', 'Sample Exercise C', 'Perform this sample exercise with control and steady breathing.')],
+      1: [sampleA],
+      2: [sampleB],
+      3: [sampleC],
     },
   },
   hotel: {
     name: 'Hotel',
     ODD_EVEN_WORKOUTS: {},
     NUMBERED_WORKOUTS: {
-      1: [ex('sample-a', 'Sample Exercise A', 'Perform this sample exercise with control and steady breathing.')],
-      2: [ex('sample-b', 'Sample Exercise B', 'Perform this sample exercise with control and steady breathing.')],
-      3: [ex('sample-c', 'Sample Exercise C', 'Perform this sample exercise with control and steady breathing.')],
+      1: [sampleA],
+      2: [sampleB],
+      3: [sampleC],
     },
   },
 }

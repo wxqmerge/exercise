@@ -2,6 +2,15 @@ import { useRef, useState } from 'react'
 import { apiFetch } from '../utils/api'
 import { loadDayEntries, loadAllEntries, persistDayEntries, clearDayEntries } from '../utils/entries'
 import { getDayWorkout } from '../data/exercises'
+import { applySwaps } from '../utils/swaps'
+
+const DEFAULT_REPS = ['10', '10', '10']
+const DEFAULT_WEIGHTS = ['', '', '']
+
+const formSet = (entry, key, fallback) => {
+  const values = entry && Array.isArray(entry[key]) ? entry[key] : null
+  return [0, 1, 2].map(i => (values && values[i] != null ? String(values[i]) : fallback[i]))
+}
 
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise gif`)}&tbs=iftype:animated`
@@ -20,12 +29,44 @@ const isImageUrl = (url) => {
   }
 }
 
-export default function Workout({ day, days = [], dayMode = 'numbered', workoutType = '', workoutTypes = [], onTypeChange, onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
+const downloadBlob = (blob, filename) => {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+const readFileAs = (file, method) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader[method](file)
+  })
+
+const selectClass = 'border border-gray-300 rounded px-2 py-1 text-xs bg-white text-gray-700'
+
+const makeSelect = (value, onChange, options, ariaLabel) => (
+  <select
+    value={value}
+    onChange={e => onChange(e.target.value)}
+    aria-label={ariaLabel}
+    className={selectClass}
+  >
+    {options}
+  </select>
+)
+
+export default function Workout({ day, days = [], dayMode = 'numbered', workoutType = '', workoutTypes = [], exerciseSwaps = {}, onTypeChange, onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
   const workoutName = workoutTypes.find(t => t.id === workoutType)?.name || workoutType
   const [index, setIndex] = useState(0)
   const [entries, setEntries] = useState(() => loadDayEntries(workoutType, day))
-  const [reps, setReps] = useState(['10', '10', '10'])
-  const [weights, setWeights] = useState(['', '', ''])
+  const [reps, setReps] = useState(() => formSet(entries[exercises[0]?.id], 'reps', DEFAULT_REPS))
+  const [weights, setWeights] = useState(() => formSet(entries[exercises[0]?.id], 'weights', DEFAULT_WEIGHTS))
   const [urlDraft, setUrlDraft] = useState('')
   const [imageError, setImageError] = useState(false)
   const [imageHint, setImageHint] = useState('')
@@ -42,41 +83,42 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     const nextEntries = { ...entries, [exercise.id]: { reps: [...reps], weights: [...weights] } }
     setEntries(nextEntries)
     persistDayEntries(workoutType, day, nextEntries)
-    setReps(['10', '10', '10'])
-    setWeights(['', '', ''])
-    setUrlDraft('')
-    setImageError(false)
-    setImageHint('')
-    setZoomed(false)
+    setReps([...DEFAULT_REPS])
+    setWeights([...DEFAULT_WEIGHTS])
+    resetForm()
     setIndex(i => i + 1)
   }
 
   const nudgeAll = (setter, delta) =>
     setter(prev => prev.map(p => (p === '' && delta < 0 ? p : String(Math.max(0, (Number(p) || 0) + delta)))))
 
-  const changeDay = (newDay) => {
-    if (newDay === day || !onDayChange) return
-    setEntries(loadDayEntries(workoutType, newDay))
-    setReps(['10', '10', '10'])
-    setWeights(['', '', ''])
+  const resetForm = () => {
     setUrlDraft('')
     setImageError(false)
     setImageHint('')
     setZoomed(false)
+  }
+
+  const syncForm = (type, dayName) => {
+    const all = loadDayEntries(type, dayName)
+    setEntries(all)
+    const first = applySwaps(getDayWorkout(type, dayMode, dayName), dayName, exerciseSwaps, type)[0]
+    const saved = first ? all[first.id] : null
+    setReps(formSet(saved, 'reps', DEFAULT_REPS))
+    setWeights(formSet(saved, 'weights', DEFAULT_WEIGHTS))
+    resetForm()
     setIndex(0)
+  }
+
+  const changeDay = (newDay) => {
+    if (newDay === day || !onDayChange) return
+    syncForm(workoutType, newDay)
     onDayChange(newDay)
   }
 
   const changeType = (newType) => {
     if (newType === workoutType || !onTypeChange) return
-    setEntries(loadDayEntries(newType, day))
-    setReps(['10', '10', '10'])
-    setWeights(['', '', ''])
-    setUrlDraft('')
-    setImageError(false)
-    setImageHint('')
-    setZoomed(false)
-    setIndex(0)
+    syncForm(newType, day)
     onTypeChange(newType)
   }
 
@@ -84,53 +126,33 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     if (index === 0) return
     const prev = exercises[index - 1]
     const saved = entries[prev.id]
-    if (saved) {
-      setReps([...saved.reps])
-      setWeights([...saved.weights])
-    }
-    setUrlDraft('')
-    setImageError(false)
-    setImageHint('')
-    setZoomed(false)
+    setReps(formSet(saved, 'reps', DEFAULT_REPS))
+    setWeights(formSet(saved, 'weights', DEFAULT_WEIGHTS))
+    resetForm()
     setIndex(i => i - 1)
   }
 
   const restart = () => {
     setEntries({})
     clearDayEntries(workoutType, day)
-    setReps(['10', '10', '10'])
-    setWeights(['', '', ''])
-    setUrlDraft('')
-    setImageError(false)
-    setImageHint('')
-    setZoomed(false)
+    setReps([...DEFAULT_REPS])
+    setWeights([...DEFAULT_WEIGHTS])
+    resetForm()
     setIndex(0)
   }
 
-  const daySelect = (
-    <select
-      value={day}
-      onChange={e => changeDay(e.target.value)}
-      aria-label="Day"
-      className="border border-gray-300 rounded px-2 py-1 text-xs bg-white text-gray-700"
-    >
-      {days.map(d => (
-        <option key={d} value={d}>{d}</option>
-      ))}
-    </select>
+  const daySelect = makeSelect(
+    day,
+    changeDay,
+    days.map(d => <option key={d} value={d}>{d}</option>),
+    'Day',
   )
 
-  const typeSelect = (
-    <select
-      value={workoutType}
-      onChange={e => changeType(e.target.value)}
-      aria-label="Workout type"
-      className="border border-gray-300 rounded px-2 py-1 text-xs bg-white text-gray-700"
-    >
-      {workoutTypes.map(t => (
-        <option key={t.id} value={t.id}>{t.name}</option>
-      ))}
-    </select>
+  const typeSelect = makeSelect(
+    workoutType,
+    changeType,
+    workoutTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>),
+    'Workout type',
   )
 
   if (exercises.length === 0) {
@@ -146,11 +168,12 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
   }
 
   if (finished) {
-    const totalVolume = Object.values(entries).reduce(
-      (sum, e) =>
-        sum + e.reps.reduce((s, r, i) => s + (Number(r) || 0) * (Number(e.weights[i]) || 0), 0),
-      0,
-    )
+    const totalVolume = exercises.reduce((sum, ex) => {
+      const e = entries[ex.id]
+      const r = e && Array.isArray(e.reps) ? e.reps : []
+      const w = e && Array.isArray(e.weights) ? e.weights : []
+      return sum + r.reduce((s, rep, i) => s + (Number(rep) || 0) * (Number(w[i]) || 0), 0)
+    }, 0)
     return (
       <main className="min-h-screen bg-[#f5f5f0] flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow p-8 max-w-md w-full">
@@ -247,12 +270,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     }
     setSaving(true)
     try {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
+      const dataUrl = await readFileAs(file, 'readAsDataURL')
       const res = await apiFetch('/api/images/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -280,15 +298,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
         setImageHint('Export failed')
         return
       }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'exercise-backup.json'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
+      downloadBlob(await res.blob(), 'exercise-backup.json')
     } catch {
       setImageHint('Export failed — server unreachable')
     }
@@ -300,7 +310,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     const lines = [['Day', 'Exercise', 'Set 1', 'Set 2', 'Set 3']]
     for (const d of days) {
       const dayEntries = all[workoutType]?.[d] || {}
-      for (const ex of getDayWorkout(workoutType, dayMode, d)) {
+      for (const ex of applySwaps(getDayWorkout(workoutType, dayMode, d), d, exerciseSwaps, workoutType)) {
         const e = dayEntries[ex.id]
         lines.push([
           d,
@@ -309,29 +319,17 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
         ])
       }
     }
-    const blob = new Blob([lines.map(l => l.join('\t')).join('\n')], {
-      type: 'text/tab-separated-values',
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'workout.tab'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
+    downloadBlob(
+      new Blob([lines.map(l => l.join('\t')).join('\n')], { type: 'text/tab-separated-values' }),
+      'workout.tab',
+    )
   }
 
   const importBackup = async (file) => {
     if (!file || saving) return
     setSaving(true)
     try {
-      const text = await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result)
-        reader.onerror = reject
-        reader.readAsText(file)
-      })
+      const text = await readFileAs(file, 'readAsText')
       const data = JSON.parse(text)
       const res = await apiFetch('/api/import', {
         method: 'POST',

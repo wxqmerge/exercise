@@ -22,7 +22,12 @@ export function useConfig() {
         return res.json()
       })
       .then(data => {
-        if (!cancelled && data) setConfig(data)
+        if (cancelled) return
+        if (data) {
+          setConfig(data)
+          setError(null)
+          setInvalidKey(false)
+        }
       })
       .catch(err => {
         if (!cancelled) setError(err.message)

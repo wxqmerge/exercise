@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "node ../scripts/compile-shared.js && npx tsc && node ../scripts/patch-shared-imports.js && node ../scripts/flatten-server-dist.js",
+    "build": "npx tsc && node ../scripts/flatten-server-dist.js",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit"
@@ -16,8 +16,7 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
-    "helmet": "^7.1.0",
-    "zod": "^4.4.3"
+    "helmet": "^7.1.0"
   },
   "devDependencies": {
     "@types/compression": "^1.8.1",

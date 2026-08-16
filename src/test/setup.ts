@@ -200,28 +200,4 @@ Object.defineProperty(window, 'location', {
   writable: true,
 });
 
-Object.defineProperty(navigator, 'clipboard', {
-  value: {
-    writeText: vi.fn(() => Promise.resolve()),
-  },
-  writable: true,
-});
-
-Object.defineProperty(window, 'IntersectionObserver', {
-  writable: true,
-  value: vi.fn(function () {
-    this.observe = vi.fn();
-    this.disconnect = vi.fn();
-  }),
-});
-
-Object.defineProperty(window, 'ResizeObserver', {
-  writable: true,
-  value: vi.fn(function () {
-    this.observe = vi.fn();
-    this.unobserve = vi.fn();
-    this.disconnect = vi.fn();
-  }),
-});
-
 globalThis.__TEST_MOCK_DATA__ = mockData;

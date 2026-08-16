@@ -188,10 +188,6 @@ if [ -d "server/dist" ]; then
     rm -rf server/dist
     echo "  Removed server/dist/"
 fi
-if [ -d "shared/types" ]; then
-    rm -f shared/types/*.js shared/types/*.js.map shared/types/*.d.ts shared/types/*.d.ts.map
-    echo "  Removed stale shared/types/*.js"
-fi
 
 # 5. Install frontend dependencies and build
 echo "[5/13] Installing frontend dependencies..."

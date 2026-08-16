@@ -23,11 +23,6 @@ deploy/*.conf
 .env*
 !/.env.example
 
-# Shared build artifacts
-shared/types/*.js.map
-shared/types/*.d.ts
-shared/types/*.d.ts.map
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

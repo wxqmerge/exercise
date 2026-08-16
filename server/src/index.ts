@@ -208,12 +208,22 @@ const MIME_BY_EXT: Record<string, string> = {
   bmp: 'image/bmp',
 };
 
-app.get('/api/images', (_req, res) => {
-  const images: Record<string, string> = {};
+const validExerciseId = (id: unknown): id is string =>
+  typeof id === 'string' && /^[a-z0-9-]+$/.test(id);
+
+const listImageFiles = (): { id: string; file: string }[] => {
+  const files: { id: string; file: string }[] = [];
   for (const file of fs.readdirSync(IMAGE_DIR)) {
     const dot = file.lastIndexOf('.');
     if (dot <= 0) continue;
-    const id = file.substring(0, dot);
+    files.push({ id: file.substring(0, dot), file });
+  }
+  return files;
+};
+
+app.get('/api/images', (_req, res) => {
+  const images: Record<string, string> = {};
+  for (const { id, file } of listImageFiles()) {
     images[id] = `/api/images/${encodeURIComponent(file)}`;
   }
   res.json(images);
@@ -221,7 +231,7 @@ app.get('/api/images', (_req, res) => {
 
 app.post('/api/images/save', async (req, res) => {
   const { exerciseId, url } = req.body || {};
-  if (typeof exerciseId !== 'string' || !/^[a-z0-9-]+$/.test(exerciseId)) {
+  if (!validExerciseId(exerciseId)) {
     res.status(400).json({ success: false, error: { message: 'Invalid exercise id' } });
     return;
   }
@@ -260,7 +270,7 @@ app.post('/api/images/save', async (req, res) => {
 
 app.post('/api/images/upload', (req, res) => {
   const { exerciseId, dataUrl } = req.body || {};
-  if (typeof exerciseId !== 'string' || !/^[a-z0-9-]+$/.test(exerciseId)) {
+  if (!validExerciseId(exerciseId)) {
     res.status(400).json({ success: false, error: { message: 'Invalid exercise id' } });
     return;
   }
@@ -286,11 +296,8 @@ app.post('/api/images/upload', (req, res) => {
 
 app.get('/api/export', (_req, res) => {
   const images: Record<string, { filename: string; mimeType: string; data: string }> = {};
-  for (const file of fs.readdirSync(IMAGE_DIR)) {
-    const dot = file.lastIndexOf('.');
-    if (dot <= 0) continue;
-    const id = file.substring(0, dot);
-    const ext = file.substring(dot + 1).toLowerCase();
+  for (const { id, file } of listImageFiles()) {
+    const ext = file.substring(file.lastIndexOf('.') + 1).toLowerCase();
     if (!IMAGE_URL_EXTS.has(ext)) continue;
     images[id] = {
       filename: file,
@@ -313,7 +320,7 @@ app.post('/api/import', (req, res) => {
   const imported: string[] = [];
   const errors: string[] = [];
   for (const [id, entry] of Object.entries(body.images as Record<string, any>)) {
-    if (!/^[a-z0-9-]+$/.test(id)) {
+    if (!validExerciseId(id)) {
       errors.push(`Invalid exercise id: ${id}`);
       continue;
     }
