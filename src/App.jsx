@@ -4,6 +4,7 @@ import { useExerciseImages } from './hooks/useExerciseImages'
 import { PROGRAMS, DEFAULT_TYPE, getDayWorkout } from './data/exercises'
 import { applySwaps } from './utils/swaps'
 import { getDayForDate } from './utils/day'
+import { pullFromServer } from './utils/entries'
 import { apiFetch, getApiKey, setApiKey, clearApiKey, getKeyFromUrl } from './utils/api'
 import Workout from './components/Workout'
 import Settings from './components/Settings'
@@ -18,6 +19,18 @@ function WorkoutApp({ onKeyCleared }) {
   const [selectedDay, setSelectedDay] = useState(null)
   const [selectedType, setSelectedType] = useState(null)
   const [view, setView] = useState('workout')
+  const [entriesReady, setEntriesReady] = useState(false)
+
+  useEffect(() => {
+    if (!config) return undefined
+    let active = true
+    pullFromServer().then(() => {
+      if (active) setEntriesReady(true)
+    })
+    return () => {
+      active = false
+    }
+  }, [config])
 
   const changeKey = () => {
     clearApiKey()
@@ -50,7 +63,7 @@ function WorkoutApp({ onKeyCleared }) {
     )
   }
 
-  if (!config) {
+  if (!config || !entriesReady) {
     return (
       <main className="min-h-screen bg-[#f5f5f0] flex items-center justify-center p-4">
         <p className="text-gray-600">Loading…</p>

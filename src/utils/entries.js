@@ -1,3 +1,5 @@
+import { apiFetch } from './api'
+
 const ENTRIES_STORAGE = 'exercise-entries'
 const DAY_KEY = /^(Day \d+|Odd|Even)$/
 const LEGACY_TYPE = 'dumbbells'
@@ -60,3 +62,49 @@ export const clearDayEntries = (type, day) => {
     writeAll(all)
   }
 }
+
+// Push the full local map to the server (replaces the server copy).
+// Best effort: an offline push just never arrives; the next push is a full map.
+export const syncToServer = () =>
+  apiFetch('/api/entries', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(loadAllEntries()),
+  }).catch(() => {})
+
+// Pull server entries and merge them under the local ones (local wins;
+// server values fill missing entries/fields). Best effort.
+export const pullFromServer = () =>
+  apiFetch('/api/entries')
+    .then(res => (res.ok ? res.json() : {}))
+    .then(server => {
+      if (!server || typeof server !== 'object') return null
+      const local = loadAllEntries()
+      const merged = local
+      for (const type of Object.keys(server)) {
+        const serverDays = server[type]
+        if (!serverDays || typeof serverDays !== 'object') continue
+        if (!merged[type] || typeof merged[type] !== 'object') merged[type] = {}
+        for (const day of Object.keys(serverDays)) {
+          const serverEx = serverDays[day]
+          if (!serverEx || typeof serverEx !== 'object') continue
+          if (!merged[type][day] || typeof merged[type][day] !== 'object') merged[type][day] = {}
+          for (const id of Object.keys(serverEx)) {
+            const s = serverEx[id]
+            if (!s || typeof s !== 'object') continue
+            const l = merged[type][day][id]
+            if (!l || typeof l !== 'object') {
+              merged[type][day][id] = { reps: s.reps, weights: s.weights }
+            } else {
+              const entry = { ...l }
+              if (entry.reps === undefined && s.reps !== undefined) entry.reps = s.reps
+              if (entry.weights === undefined && s.weights !== undefined) entry.weights = s.weights
+              merged[type][day][id] = entry
+            }
+          }
+        }
+      }
+      writeAll(merged)
+      return merged
+    })
+    .catch(() => null)

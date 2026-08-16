@@ -56,7 +56,7 @@ app.use(cors({
   origin: corsOrigins.length === 1 && corsOrigins[0] === '*' ? '*' : corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-App-Key'],
 }));
 
 const APP_KEY = process.env.APP_KEY || '';
@@ -184,6 +184,69 @@ app.put('/api/config', (req, res) => {
 
 app.get('/api/admin/ping', requireAdminKey, (_req, res) => {
   res.json({ success: true, message: 'admin auth ok' });
+});
+
+const ENTRIES_FILE = path.join(__dirname, '../../data/entries.json');
+
+const readEntriesFile = (): Record<string, any> => {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(ENTRIES_FILE, 'utf-8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const isValueArray = (v: unknown) =>
+  Array.isArray(v) && v.every(x => typeof x === 'string' || typeof x === 'number');
+
+app.get('/api/entries', (_req, res) => {
+  res.json(readEntriesFile());
+});
+
+app.put('/api/entries', (req, res) => {
+  const body = req.body;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    res.status(400).json({ success: false, error: { message: 'entries must be an object' } });
+    return;
+  }
+  const next: Record<string, any> = {};
+  for (const [type, days] of Object.entries(body)) {
+    if (!days || typeof days !== 'object' || Array.isArray(days)) {
+      res.status(400).json({ success: false, error: { message: `Invalid entries for type ${type}` } });
+      return;
+    }
+    next[type] = {};
+    for (const [day, exercises] of Object.entries(days as Record<string, any>)) {
+      if (!exercises || typeof exercises !== 'object' || Array.isArray(exercises)) {
+        res.status(400).json({ success: false, error: { message: `Invalid entries for ${type} ${day}` } });
+        return;
+      }
+      next[type][day] = {};
+      for (const [exId, entry] of Object.entries(exercises as Record<string, any>)) {
+        if (!validExerciseId(exId)) {
+          res.status(400).json({ success: false, error: { message: `Invalid exercise id: ${exId}` } });
+          return;
+        }
+        if (!entry || typeof entry !== 'object' || !isValueArray(entry.reps) || !isValueArray(entry.weights)) {
+          res.status(400).json({ success: false, error: { message: `Invalid entry for ${exId}` } });
+          return;
+        }
+        next[type][day][exId] = {
+          reps: entry.reps.map(String).slice(0, 3),
+          weights: entry.weights.map(String).slice(0, 3),
+        };
+      }
+    }
+  }
+  try {
+    fs.mkdirSync(path.dirname(ENTRIES_FILE), { recursive: true });
+    fs.writeFileSync(ENTRIES_FILE, JSON.stringify(next, null, 2));
+  } catch {
+    res.status(500).json({ success: false, error: { message: 'Could not save entries' } });
+    return;
+  }
+  res.json({ success: true });
 });
 
 const IMAGE_DIR = path.join(__dirname, '../../data/images');

@@ -24,31 +24,62 @@ BASE_CSS = [
     "article img{display:block;width:100%;max-height:340px;object-fit:contain;background:#fff}",
     ".body{padding:12px 14px 14px}h3{margin:0 0 6px;font-size:1.02rem}p{margin:0;color:#45505f;font-size:.93rem}",
     ".noimg{display:flex;align-items:center;justify-content:center;height:160px;color:#9aa5b1;font-size:.95rem;background:#fafbfc}",
-    ".log{margin-top:10px;padding-top:10px;border-top:1px dashed #e3e7ec;font-size:.85rem;font-weight:600;color:#1c2430}",
+    ".log{font-size:.72rem;font-weight:500;color:#5a6675;letter-spacing:.03em}",
     ".log:empty{display:none}",
 ]
+
+
+def read_env() -> dict:
+    env = {}
+    p = REPO / "server" / ".env"
+    if p.exists():
+        for line in p.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, v = line.partition("=")
+                env[k.strip()] = v.strip().strip('"').strip("'")
+    return env
+
+
+ENV = read_env()
+_DOMAIN = ENV.get("DOMAIN", "localhost")
+_PORT = ENV.get("PORT", "3000")
+API_BASE = f"http://{_DOMAIN}:{_PORT}/api" if _DOMAIN in ("localhost", "127.0.0.1") else f"https://{_DOMAIN}/api"
+APP_KEY = ENV.get("APP_KEY", "")
 
 LOG_JS = (
     "<script>"
     "(function(){"
-    "var raw;"
-    "try { raw = JSON.parse(localStorage.getItem('exercise-entries') || '{}'); } catch (e) { raw = {}; }"
+    "var API = " + json.dumps(API_BASE) + ";"
+    "var KEY = " + json.dumps(APP_KEY) + ";"
     "var pick = function (arr) {"
     "var v = '';"
     "(arr || []).forEach(function (x) { var s = String(x); if (s) v = s; });"
     "return v;"
     "};"
+    "function render(entries) {"
     "document.querySelectorAll('.log').forEach(function (el) {"
-    "var type = raw[el.getAttribute('data-type')];"
+    "var type = entries[el.getAttribute('data-type')];"
     "var day = type && type[el.getAttribute('data-day')];"
     "var ex = day && day[el.getAttribute('data-ex')];"
     "if (!ex) return;"
     "var parts = [];"
-    "var w = pick(ex.weights);"
     "var r = pick(ex.reps);"
-    "if (w) parts.push('Weight ' + w);"
-    "if (r) parts.push('Reps ' + r);"
-    "if (parts.length) el.textContent = parts.join('  ·  ');"
+    "var w = pick(ex.weights);"
+    "if (r) parts.push(r + '-reps');"
+    "if (w) parts.push(w + '-lbs');"
+    "if (parts.length) el.textContent = parts.join(' ');"
+    "});"
+    "}"
+    "var req = { headers: {} };"
+    "if (KEY) req.headers['X-App-Key'] = KEY;"
+    "fetch(API + '/entries', req)"
+    ".then(function (res) { if (!res.ok) { throw new Error('http ' + res.status); } return res.json(); })"
+    ".then(render)"
+    ".catch(function () {"
+    "var local = {};"
+    "try { local = JSON.parse(localStorage.getItem('exercise-entries') || '{}'); } catch (e) { local = {}; }"
+    "render(local);"
     "});"
     "})();"
     "</script>"
@@ -229,9 +260,8 @@ def build_page(routine, files, chosen) -> str:
                 img_tag = '<div class="noimg">No image yet</div>'
             parts.append(
                 f'<article>{img_tag}'
-                f'<div class="body"><h3>{name}</h3><p>{desc}</p>'
-                f'<p class="log" data-type="{routine["slug"]}" data-day="{day}" data-ex="{ex_id}"></p>'
-                f'</div></article>'
+                f'<div class="body"><h3>{name} <span class="log" data-type="{routine["slug"]}" data-day="{day}" data-ex="{ex_id}"></span></h3>'
+                f'<p>{desc}</p></div></article>'
             )
         parts.append("</section>")
     parts.append(LOG_JS)

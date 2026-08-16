@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { apiFetch } from '../utils/api'
-import { loadDayEntries, loadAllEntries, persistDayEntries, clearDayEntries } from '../utils/entries'
+import { loadDayEntries, loadAllEntries, persistDayEntries, clearDayEntries, syncToServer } from '../utils/entries'
 import { getDayWorkout } from '../data/exercises'
 import { applySwaps } from '../utils/swaps'
 
@@ -92,6 +92,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     const nextEntries = { ...entries, [exercise.id]: { reps: [...reps], weights: weights.map(snapWeight) } }
     setEntries(nextEntries)
     persistDayEntries(workoutType, day, nextEntries)
+    syncToServer()
     setReps([...DEFAULT_REPS])
     setWeights([...DEFAULT_WEIGHTS])
     resetForm()
@@ -149,6 +150,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
   const restart = () => {
     setEntries({})
     clearDayEntries(workoutType, day)
+    syncToServer()
     setReps([...DEFAULT_REPS])
     setWeights([...DEFAULT_WEIGHTS])
     resetForm()

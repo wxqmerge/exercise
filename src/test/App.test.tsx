@@ -266,6 +266,34 @@ describe('App', () => {
     expect(stored['hotel']).toBeUndefined();
   });
 
+  it('saves entries to the server after Next', async () => {
+    render(<App />);
+    const { day, workout } = todayWorkout();
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+    await vi.waitFor(() => {
+      const call = fetchMock.mock.calls.find(c => c[0] === '/api/entries' && c[1]?.method === 'PUT');
+      expect(call).toBeTruthy();
+    });
+    const call = fetchMock.mock.calls.find(c => c[0] === '/api/entries' && c[1]?.method === 'PUT');
+    expect(JSON.parse(call[1].body)).toMatchObject({
+      dumbbells: { [day]: { [workout[0].id]: { weights: ['50', '50', '50'] } } },
+    });
+  });
+
+  it('loads entries from the server when local storage is empty', async () => {
+    const { day, workout } = todayWorkout();
+    globalThis.__TEST_MOCK_DATA__.entries = {
+      dumbbells: { [day]: { [workout[0].id]: { reps: ['10', '10', '10'], weights: ['35', '35', '35'] } } },
+    };
+    render(<App />);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(35);
+    expect(screen.getByLabelText('Set 1 reps')).toHaveValue(10);
+  });
+
   it('fills the entered weight into the other empty sets', async () => {
     render(<App />);
     const { day, workout } = todayWorkout();

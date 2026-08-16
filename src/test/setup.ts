@@ -15,6 +15,7 @@ const mockData = {
   keyRequired: true,
   images: {},
   imagesSaveResult: { ok: true },
+  entries: undefined,
 };
 
 const createFetchMock = () => {
@@ -92,6 +93,27 @@ const createFetchMock = () => {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, url: savedUrl }),
+      });
+    }
+    if (typeof url === 'string' && url === '/api/entries') {
+      if (options?.method === 'PUT') {
+        const body = JSON.parse(options.body || '{}');
+        if (!body || typeof body !== 'object' || Array.isArray(body)) {
+          return Promise.resolve({
+            ok: false,
+            status: 400,
+            json: () => Promise.resolve({ success: false, error: { message: 'entries must be an object' } }),
+          });
+        }
+        mockData.entries = { ...body };
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockData.entries || {}),
       });
     }
     if (typeof url === 'string' && url.startsWith('/api/images/') && options?.method === 'DELETE') {
@@ -183,6 +205,7 @@ beforeEach(() => {
   mockData.keyRequired = true;
   mockData.images = {};
   mockData.imagesSaveResult = { ok: true };
+  mockData.entries = undefined;
   URL.createObjectURL = vi.fn(() => 'blob:http://test.com/mock');
   URL.revokeObjectURL = vi.fn();
   localStorage.clear();
