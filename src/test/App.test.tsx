@@ -317,6 +317,48 @@ describe('App', () => {
     expect(screen.getByLabelText('Set 3 weight')).toHaveValue(50);
   });
 
+  it('persists typed weights when navigating away without pressing Next', async () => {
+    render(<App />);
+    const { day, workout } = todayWorkout();
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '35' } });
+    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(35);
+    const stored = JSON.parse(localStorage.getItem('exercise-entries'));
+    expect(stored['dumbbells'][day][workout[0].id]).toEqual({ reps: ['10', '10', '10'], weights: ['35', '35', '35'] });
+    const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+    await vi.waitFor(() => {
+      const call = fetchMock.mock.calls.find(c => c[0] === '/api/entries' && c[1]?.method === 'PUT');
+      expect(JSON.parse(call[1].body)).toMatchObject({
+        dumbbells: { [day]: { [workout[0].id]: { weights: ['35', '35', '35'] } } },
+      });
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    await screen.findByText('All workouts');
+    expect(screen.getAllByText('35/10/35/10/35/10').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(35);
+    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(35);
+    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(35);
+  });
+
+  it('shows the next exercise saved values after Next', async () => {
+    const { day, workout } = todayWorkout();
+    localStorage.setItem('exercise-entries', JSON.stringify({
+      dumbbells: { [day]: {
+        [workout[0].id]: { reps: ['8', '8', '8'], weights: ['40', '40', '40'] },
+        [workout[1].id]: { reps: ['6', '6', '6'], weights: ['25', '25', '25'] },
+      } },
+    }));
+    render(<App />);
+    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
+    expect(screen.getByLabelText('Set 1 reps')).toHaveValue(8);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await screen.findByText(`${day} · Exercise 2 of ${workout.length}`);
+    expect(screen.getByLabelText('Set 1 reps')).toHaveValue(6);
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(25);
+  });
+
   it('snaps weights to 5 lb increments on blur and on save', async () => {
     render(<App />);
     const { day, workout } = todayWorkout();

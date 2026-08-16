@@ -87,25 +87,36 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
   const isLast = index === exercises.length - 1
   const finished = index >= exercises.length
 
-  const saveAndNext = () => {
+  const persistForm = (nextReps, nextWeights) => {
     const exercise = exercises[index]
-    const nextEntries = { ...entries, [exercise.id]: { reps: [...reps], weights: weights.map(snapWeight) } }
-    setEntries(nextEntries)
-    persistDayEntries(workoutType, day, nextEntries)
+    if (!exercise) return
+    const updated = { ...entries, [exercise.id]: { reps: [...nextReps], weights: nextWeights.map(snapWeight) } }
+    setEntries(updated)
+    persistDayEntries(workoutType, day, updated)
     syncToServer()
-    setReps([...DEFAULT_REPS])
-    setWeights([...DEFAULT_WEIGHTS])
+  }
+
+  const saveAndNext = () => {
+    persistForm(reps, weights)
+    const nextExercise = exercises[index + 1]
+    const saved = nextExercise ? entries[nextExercise.id] : null
+    setReps(nextExercise ? formSet(saved, 'reps', DEFAULT_REPS) : [...DEFAULT_REPS])
+    setWeights(nextExercise ? weightSet(saved) : [...DEFAULT_WEIGHTS])
     resetForm()
     setIndex(i => i + 1)
   }
 
-  const nudgeAll = (setter, delta) =>
-    setter(prev => prev.map(p => (p === '' && delta < 0 ? p : String(Math.max(0, (Number(p) || 0) + delta)))))
+  const nudgeReps = (delta) => {
+    const next = reps.map(p => (p === '' && delta < 0 ? p : String(Math.max(0, (Number(p) || 0) + delta))))
+    setReps(next)
+    persistForm(next, weights)
+  }
 
-  const nudgeWeights = (delta) =>
-    setWeights(prev =>
-      prev.map(p => (p === '' && delta < 0 ? p : String(Math.max(0, Math.round((Number(p) || 0) / 5) * 5 + delta)))),
-    )
+  const nudgeWeights = (delta) => {
+    const next = weights.map(p => (p === '' && delta < 0 ? p : String(Math.max(0, Math.round((Number(p) || 0) / 5) * 5 + delta))))
+    setWeights(next)
+    persistForm(reps, next)
+  }
 
   const resetForm = () => {
     setUrlDraft('')
@@ -510,7 +521,11 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
                   min="0"
                   inputMode="numeric"
                   value={r}
-                  onChange={e => setReps(prev => prev.map((p, j) => (j === i ? e.target.value : p)))}
+                  onChange={e => {
+                    const next = reps.map((p, j) => (j === i ? e.target.value : p))
+                    setReps(next)
+                    persistForm(next, weights)
+                  }}
                   aria-label={`Set ${i + 1} reps`}
                   className="w-full border border-gray-300 rounded px-3 py-2"
                   placeholder="0"
@@ -518,7 +533,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
                 <span className="flex gap-1">
                   <button
                     type="button"
-                    onClick={() => nudgeAll(setReps, -1)}
+                    onClick={() => nudgeReps(-1)}
                     aria-label="Decrease all reps"
                     className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
                   >
@@ -526,7 +541,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
                   </button>
                   <button
                     type="button"
-                    onClick={() => nudgeAll(setReps, 1)}
+                    onClick={() => nudgeReps(1)}
                     aria-label="Increase all reps"
                     className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
                   >
@@ -541,13 +556,19 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
                   value={weights[i]}
                   onChange={e => {
                     const next = e.target.value
-                    setWeights(prev =>
-                      next.length >= 2
-                        ? prev.map((p, j) => (j === i ? next : p === '' ? next : p))
-                        : prev.map((p, j) => (j === i ? next : p)),
-                    )
+                    const updated = next.length >= 2
+                      ? weights.map((p, j) => (j === i ? next : p === '' ? next : p))
+                      : weights.map((p, j) => (j === i ? next : p))
+                    setWeights(updated)
+                    persistForm(reps, updated)
                   }}
-                  onBlur={() => setWeights(prev => prev.map((p, j) => (j === i ? snapWeight(p) : p)))}
+                  onBlur={() => {
+                    const updated = weights.map((p, j) => (j === i ? snapWeight(p) : p))
+                    if (updated[i] !== weights[i]) {
+                      setWeights(updated)
+                      persistForm(reps, updated)
+                    }
+                  }}
                   aria-label={`Set ${i + 1} weight`}
                   className="w-full border border-gray-300 rounded px-3 py-2"
                   placeholder="0"
