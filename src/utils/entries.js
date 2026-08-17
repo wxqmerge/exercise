@@ -1,17 +1,11 @@
 import { apiFetch } from './api'
+import { safeParseLocalStorage } from './storage'
 
 const ENTRIES_STORAGE = 'exercise-entries'
 const DAY_KEY = /^(Day \d+|Odd|Even)$/
 const LEGACY_TYPE = 'dumbbells'
 
-const readRaw = () => {
-  try {
-    const all = JSON.parse(localStorage.getItem(ENTRIES_STORAGE) || '{}')
-    return all && typeof all === 'object' ? all : {}
-  } catch {
-    return {}
-  }
-}
+const readRaw = () => safeParseLocalStorage(ENTRIES_STORAGE, {})
 
 // Legacy schema was { [day]: { [exerciseId]: ... } }; the current schema is
 // { [type]: { [day]: { [exerciseId]: ... } } }. Wrap legacy stores under the

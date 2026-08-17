@@ -3,25 +3,14 @@ import { apiFetch } from '../utils/api'
 import { findEntry } from '../utils/entries'
 import { programExercises } from '../utils/swaps'
 import { getProgram } from '../data/exercises'
+import { formatEntry } from '../utils/format'
+import { workoutsFor } from '../utils/days'
 
 const DAY_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-const formatEntry = (entry) =>
-  (entry?.reps || [0, 0, 0]).map((r, i) => `${entry?.weights?.[i] || 0}/${r || 0}`).join('/')
 
-const workoutsFor = (typeId, mode, count) => {
-  const program = getProgram(typeId)
-  if (mode === 'numbered') {
-    return Array.from({ length: count }, (_, i) => ({
-      day: `Day ${i + 1}`,
-      exercises: program.NUMBERED_WORKOUTS[i + 1] || [],
-    }))
-  }
-  return ['Odd', 'Even'].map(day => ({
-    day,
-    exercises: program.ODD_EVEN_WORKOUTS[day] || [],
-  }))
-}
+
+
 
 export default function Settings({ config, workoutType = '', workoutTypes = [], onTypeChange, onSaved, onBack }) {
   const [mode, setMode] = useState(config.dayMode)
@@ -32,7 +21,7 @@ export default function Settings({ config, workoutType = '', workoutTypes = [], 
   const [saved, setSaved] = useState(false)
 
   const workoutName = workoutTypes.find(t => t.id === workoutType)?.name || workoutType
-  const workouts = workoutsFor(workoutType, mode, count)
+  const workouts = workoutsFor(workoutType, mode, count, getProgram)
 
   const save = async () => {
     if (saving) return

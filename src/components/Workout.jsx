@@ -3,6 +3,8 @@ import { apiFetch } from '../utils/api'
 import { loadDayEntries, loadAllEntries, persistDayEntries, clearDayEntries, syncToServer } from '../utils/entries'
 import { getDayWorkout } from '../data/exercises'
 import { applySwaps } from '../utils/swaps'
+import { joinValues } from '../utils/format'
+import { IMAGE_EXTENSIONS } from '../utils/constants'
 
 const DEFAULT_REPS = ['10', '10', '10']
 const DEFAULT_WEIGHTS = ['', '', '']
@@ -24,10 +26,9 @@ const weightSet = (entry) => formSet(entry, 'weights', DEFAULT_WEIGHTS).map(snap
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise gif`)}&tbs=iftype:animated`
 
-const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
 
-const joinValues = (values) =>
-  Array.isArray(values) ? values.filter(v => v !== '').join(' / ') || '—' : '—'
+
+
 
 const isImageUrl = (url) => {
   try {
@@ -532,7 +533,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
           </div>
           <div className="mt-1 space-y-2">
             {reps.map((r, i) => (
-              <div key={i} className="grid grid-cols-[3rem_1fr_auto_1fr_auto] gap-2 items-center">
+              <div key={i} className="grid grid-cols-[3rem_1fr_auto_1fr_auto] gap-2 items-center" style={{display: i>0 ? 'none' : 'block'}}>
                 <span className="text-sm text-gray-500">Set {i + 1}</span>
                 <input
                   type="number"

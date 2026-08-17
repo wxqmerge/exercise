@@ -22,9 +22,9 @@ BASE_CSS = [
     "section{margin-top:28px}h2{font-size:1.15rem;margin:0 0 12px;padding:8px 12px;background:#1c2430;color:#fff;border-radius:10px}",
     "article{background:#fff;border:1px solid #e3e7ec;border-radius:12px;overflow:hidden;margin-bottom:14px}",
     "article img{display:block;width:100%;max-height:340px;object-fit:contain;background:#fff}",
-    ".body{padding:12px 14px 14px}h3{margin:0 0 6px;font-size:1.02rem}p{margin:0;color:#45505f;font-size:.93rem}",
+    ".body{padding:12px 14px 14px}h3{margin:0 0 6px;font-size:1.02rem;display:flex;justify-content:space-between;align-items:baseline}p{margin:0;color:#45505f;font-size:.93rem}",
     ".noimg{display:flex;align-items:center;justify-content:center;height:160px;color:#9aa5b1;font-size:.95rem;background:#fafbfc}",
-    ".log{font-size:.72rem;font-weight:500;color:#5a6675;letter-spacing:.03em}",
+    ".log{font-size:.92rem;font-weight:500;color:#5a6675;letter-spacing:.03em}",
     ".log:empty{display:none}",
 ]
 

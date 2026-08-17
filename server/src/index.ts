@@ -12,6 +12,7 @@ import http from 'http';
 import { requireAdminKey } from './middleware/auth.middleware.js';
 import { buildVersion } from './utils/version.js';
 import { getCurrentDir } from './utils/path.js';
+import { readJsonFile } from './utils/fs.js';
 
 const __dirname = getCurrentDir(import.meta.url);
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -104,14 +105,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 const CONFIG_FILE = path.join(__dirname, '../../data/config.json');
 
-const readConfigFile = (): Record<string, unknown> => {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-};
+const readConfigFile = (): Record<string, unknown> => readJsonFile(CONFIG_FILE);
 
 const isSwapMap = (v: unknown): v is Record<string, Record<string, string>> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
@@ -188,14 +182,7 @@ app.get('/api/admin/ping', requireAdminKey, (_req, res) => {
 
 const ENTRIES_FILE = path.join(__dirname, '../../data/entries.json');
 
-const readEntriesFile = (): Record<string, any> => {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(ENTRIES_FILE, 'utf-8'));
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-};
+const readEntriesFile = (): Record<string, any> => readJsonFile(ENTRIES_FILE);
 
 const isValueArray = (v: unknown) =>
   Array.isArray(v) && v.length <= 3 && v.every(x => typeof x === 'string' || typeof x === 'number');

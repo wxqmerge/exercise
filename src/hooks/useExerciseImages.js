@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useImages } from './useImages'
+import { safeParseLocalStorage } from '../utils/storage'
 
 const STORAGE_KEY = 'exercise-images'
 
 function loadOverrides() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
-  } catch {
-    return {}
-  }
+  return safeParseLocalStorage(STORAGE_KEY, {})
 }
 
 export function useExerciseImages() {
