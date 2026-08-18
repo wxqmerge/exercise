@@ -62,16 +62,6 @@ export const loadDayEntries = (type, day) => {
 
 export const loadAllEntries = () => readAll()
 
-export const persistDayEntries = (type, day, entries) => {
-  const all = readAll()
-  const normalized = {}
-  Object.entries(entries || {}).forEach(([id, e]) => {
-    normalized[id] = normalizeEntry(e)
-  })
-  all[type] = { ...(all[type] || {}), [day]: normalized }
-  writeAll(all)
-}
-
 export const saveEntry = (type, day, exerciseId, reps, weights) => {
   const all = readAll()
   const normalized = normalizeEntry({ reps, weights })
