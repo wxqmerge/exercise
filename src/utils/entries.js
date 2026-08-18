@@ -9,14 +9,15 @@ const readRaw = () => safeParseLocalStorage(ENTRIES_STORAGE, {})
 
 const normalizeValue = (v) => {
   if (Array.isArray(v)) {
-    return v.map(String)
+    const first = v.find(x => x !== '' && x != null) ?? v[0] ?? ''
+    return String(first)
   }
-  if (v == null) return ['', '', '']
-  return [String(v), String(v), String(v)]
+  if (v == null) return ''
+  return String(v)
 }
 
 const normalizeEntry = (entry) => {
-  if (!entry || typeof entry !== 'object') return { reps: ['', '', ''], weights: ['', '', ''] }
+  if (!entry || typeof entry !== 'object') return { reps: '', weights: '' }
   return {
     reps: normalizeValue(entry.reps),
     weights: normalizeValue(entry.weights),

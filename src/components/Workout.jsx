@@ -19,10 +19,6 @@ const snapWeight = (value) => {
 const getSavedValue = (entry, key, fallback) => {
   if (!entry) return fallback
   const v = entry[key]
-  if (Array.isArray(v)) {
-    const first = v.find(x => x !== '' && x != null) ?? v[0] ?? fallback
-    return String(first)
-  }
   if (v == null || v === '') return fallback
   return String(v)
 }

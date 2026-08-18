@@ -222,11 +222,9 @@ app.put('/api/entries', (req, res) => {
         }
         const repsVal = isValue(entry.reps) ? String(entry.reps) : isValueArray(entry.reps) ? String(entry.reps[0] ?? '') : '';
         const weightsVal = isValue(entry.weights) ? String(entry.weights) : isValueArray(entry.weights) ? String(entry.weights[0] ?? '') : '';
-        const repsArr = [repsVal, repsVal, repsVal];
-        const weightsArr = [weightsVal, weightsVal, weightsVal];
         next[type][day][exId] = {
-          reps: repsArr,
-          weights: weightsArr,
+          reps: repsVal,
+          weights: weightsVal,
         };
       }
     }
