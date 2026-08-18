@@ -142,7 +142,6 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     setUrlDraft('')
     setImageError(false)
     setImageHint('')
-    setZoomed(false)
   }
 
   const syncForm = (type, dayName) => {
@@ -411,7 +410,6 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     } else if (overrides[exercise.id]) {
       onRemoveImage(exercise.id)
     }
-    setZoomed(false)
   }
 
   return (
