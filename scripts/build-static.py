@@ -212,31 +212,40 @@ def page_css():
     return "\n".join(BASE_CSS)
 
 
-def build_index() -> str:
-    cards = []
-    for r in ROUTINES:
-        total = sum(len(ex) for _, ex in r["days"])
-        cards.append(
-            f'<a class="card" href="{r["slug"]}.html">'
-            f'<h2>{r["title"]}</h2>'
-            f'<p>{len(r["days"])} days · {total} exercises</p></a>'
-        )
-    return "\n".join([
+def build_index(files, chosen) -> str:
+    parts = [
         "<!doctype html>",
         '<html lang="en"><head><meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         "<title>Workouts</title>",
         "<style>",
-        *BASE_CSS,
-        "main{padding-top:28px}.card{display:block;background:#fff;border:1px solid #e3e7ec;border-radius:12px;padding:16px;margin-bottom:14px;text-decoration:none;color:inherit}",
-        ".card h2{margin:0 0 4px;font-size:1.2rem}.card p{margin:0;color:#5a6675;font-size:.92rem}",
-        ".card:hover{border-color:#1c2430}",
+        page_css(),
         "</style></head><body>",
         "<header><h1>Workouts</h1><p>Pick a routine.</p></header>",
         "<main>",
-        *cards,
-        "</main></body></html>",
-    ])
+    ]
+    for r in ROUTINES:
+        parts.append(f'<section><h2>{r["title"]}</h2><p>{r["note"]}</p>')
+        for day, exercises in r["days"]:
+            parts.append(f'<h3>{day}</h3>')
+            for ex_id, name, desc in exercises:
+                if ex_id in chosen:
+                    pick = chosen[ex_id]
+                    src = files[ex_id]
+                    data = b64(pick)
+                    mime = "image/gif" if src.suffix.lower() == ".gif" else ("image/webp" if src.suffix.lower() == ".webp" else "image/jpeg")
+                    img_tag = f'<img src="data:{mime};base64,{data}" alt="{name}">'
+                else:
+                    img_tag = '<div class="noimg">No image yet</div>'
+                parts.append(
+                    f'<article>{img_tag}'
+                    f'<div class="body"><h3>{name} <span class="log" data-type="{r["slug"]}" data-day="{day}" data-ex="{ex_id}"></span></h3>'
+                    f'<p>{desc}</p></div></article>'
+                )
+        parts.append('</section>')
+    parts.append(LOG_JS)
+    parts.append("</main></body></html>")
+    return "\n".join(parts)
 
 
 def build_page(routine, files, chosen) -> str:
@@ -300,7 +309,7 @@ def main() -> None:
     print("\n".join(report))
 
     OUT_DIR.mkdir(exist_ok=True)
-    (OUT_DIR / "index.html").write_text(build_index(), encoding="utf-8")
+    (OUT_DIR / "index.html").write_text(build_index(files, chosen), encoding="utf-8")
     for r in ROUTINES:
         out = OUT_DIR / f"{r['slug']}.html"
         out.write_text(build_page(r, files, chosen), encoding="utf-8")
