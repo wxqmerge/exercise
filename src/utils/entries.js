@@ -43,10 +43,7 @@ export const findEntry = (type, day, exerciseId) => {
   const forType = readAll()[type] || {}
   const forDay = forType[day]
   if (forDay && forDay[exerciseId]) return forDay[exerciseId]
-  for (const dayEntries of Object.values(forType)) {
-    if (dayEntries && dayEntries[exerciseId]) return dayEntries[exerciseId]
-  }
-  return null
+  return Object.values(forType).find(dayEntries => dayEntries && dayEntries[exerciseId])?.[exerciseId] || null
 }
 
 export const clearDayEntries = (type, day) => {
@@ -79,30 +76,28 @@ export const pullFromServer = () =>
     .then(server => {
       if (!server || typeof server !== 'object') return null
       const local = loadAllEntries()
-      const merged = local
-      for (const type of Object.keys(server)) {
-        const serverDays = server[type]
-        if (!serverDays || typeof serverDays !== 'object') continue
-        if (!merged[type] || typeof merged[type] !== 'object') merged[type] = {}
-        for (const day of Object.keys(serverDays)) {
-          const serverEx = serverDays[day]
-          if (!serverEx || typeof serverEx !== 'object') continue
-          if (!merged[type][day] || typeof merged[type][day] !== 'object') merged[type][day] = {}
-          for (const id of Object.keys(serverEx)) {
-            const s = serverEx[id]
-            if (!s || typeof s !== 'object') continue
+      const merged = { ...local }
+      Object.entries(server).forEach(([type, serverDays]) => {
+        if (!serverDays || typeof serverDays !== 'object') return
+        merged[type] = { ...(merged[type] || {}) }
+        Object.entries(serverDays).forEach(([day, serverEx]) => {
+          if (!serverEx || typeof serverEx !== 'object') return
+          merged[type][day] = { ...(merged[type][day] || {}) }
+          Object.entries(serverEx).forEach(([id, s]) => {
+            if (!s || typeof s !== 'object') return
             const l = merged[type][day][id]
             if (!l || typeof l !== 'object') {
               merged[type][day][id] = { reps: s.reps, weights: s.weights }
             } else {
-              const entry = { ...l }
-              if (entry.reps === undefined && s.reps !== undefined) entry.reps = s.reps
-              if (entry.weights === undefined && s.weights !== undefined) entry.weights = s.weights
-              merged[type][day][id] = entry
+              merged[type][day][id] = {
+                ...l,
+                reps: l.reps ?? s.reps,
+                weights: l.weights ?? s.weights,
+              }
             }
-          }
-        }
-      }
+          })
+        })
+      })
       writeAll(merged)
       return merged
     })
