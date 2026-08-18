@@ -2,6 +2,13 @@ export const joinValues = (values) => {
   return values ? String(values) : '—';
 };
 
+export const snapWeight = (value) => {
+  const n = Number(value);
+  if (value == null || value === '' || !Number.isFinite(n) || n < 0) return '';
+  const snapped = Math.round(n / 5) * 5;
+  return String(snapped);
+};
+
 export const formatSets = (reps = '', weights = '') => {
   const r = String(reps ?? '');
   const w = String(weights ?? '');

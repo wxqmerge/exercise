@@ -1,20 +1,14 @@
 import { useRef, useState } from 'react'
 import { apiFetch } from '../utils/api'
-import { loadDayEntries, loadAllEntries, persistDayEntries, clearDayEntries, syncToServer } from '../utils/entries'
+import { loadDayEntries, loadAllEntries, clearDayEntries, saveEntry, syncToServer } from '../utils/entries'
 import { getDayWorkout } from '../data/exercises'
 import { applySwaps } from '../utils/swaps'
-import { joinValues } from '../utils/format'
+import { joinValues, snapWeight } from '../utils/format'
 import { IMAGE_EXTENSIONS } from '../utils/constants'
+import { makeSelect } from '../utils/ui.jsx'
 
 const DEFAULT_REPS = '10'
 const DEFAULT_WEIGHTS = ''
-
-const snapWeight = (value) => {
-  const n = Number(value)
-  if (value == null || value === '' || !Number.isFinite(n) || n < 0) return ''
-  const snapped = Math.round(n / 5) * 5
-  return snapped === 0 ? '' : String(snapped)
-}
 
 const getSavedValue = (entry, key, fallback) => {
   if (!entry) return fallback
@@ -58,19 +52,6 @@ const readFileAs = (file, method) =>
     reader[method](file)
   })
 
-const selectClass = 'border border-gray-300 rounded px-2 py-1 text-xs bg-white text-gray-700'
-
-const makeSelect = (value, onChange, options, ariaLabel) => (
-  <select
-    value={value}
-    onChange={e => onChange(e.target.value)}
-    aria-label={ariaLabel}
-    className={selectClass}
-  >
-    {options}
-  </select>
-)
-
 export default function Workout({ day, days = [], dayMode = 'numbered', workoutType = '', workoutTypes = [], exerciseSwaps = {}, onTypeChange, onDayChange, exercises, images = {}, overrides = {}, onSetImage, onRemoveImage, onRefetchImages, onOpenSettings }) {
   const workoutName = workoutTypes.find(t => t.id === workoutType)?.name || workoutType
   const getStorageKey = (ex) => ex?.originalId || ex?.id
@@ -99,26 +80,21 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     const exercise = exercises[index]
     if (!exercise) return
     const key = getStorageKey(exercise)
-    const repsArr = Array.isArray(nextReps) ? nextReps : [nextReps, nextReps, nextReps]
-    const weightsArr = Array.isArray(nextWeights) ? nextWeights : [snapWeight(nextWeights), snapWeight(nextWeights), snapWeight(nextWeights)]
-    setEntries(prev => {
-      const updated = { ...prev, [key]: { reps: repsArr, weights: weightsArr } }
-      persistDayEntries(workoutType, day, updated)
-      syncToServer()
-      return updated
-    })
+    const repsVal = nextReps ?? reps
+    const weightsVal = snapWeight(nextWeights ?? weights)
+    saveEntry(workoutType, day, key, repsVal, weightsVal)
+    setEntries(prev => ({ ...prev, [key]: { reps: repsVal, weights: weightsVal } }))
   }
 
   const saveAndNext = () => {
     const exercise = exercises[index]
     if (!exercise) return
     const key = getStorageKey(exercise)
-    const updatedEntries = { ...entries, [key]: { reps, weights: snapWeight(weights) } }
-    setEntries(updatedEntries)
-    persistDayEntries(workoutType, day, updatedEntries)
-    syncToServer()
+    const weightsSnapped = snapWeight(weights)
+    saveEntry(workoutType, day, key, reps, weightsSnapped)
+    setEntries(prev => ({ ...prev, [key]: { reps, weights: weightsSnapped } }))
     const nextExercise = exercises[index + 1]
-    const { reps: r, weights: w } = loadFormFromEntries(nextExercise, updatedEntries)
+    const { reps: r, weights: w } = loadFormFromEntries(nextExercise, { ...entries, [key]: { reps, weights: weightsSnapped } })
     setReps(r)
     setWeights(w)
     resetForm()
@@ -133,9 +109,9 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
 
   const nudgeWeights = (delta) => {
     const current = Number(weights) || 0
-    const next = weights === '' && delta < 0 ? '' : String(Math.max(0, Math.round(current / 5) * 5 + delta))
-    setWeights(next)
-    persistForm(reps, next)
+    const nextVal = weights === '' && delta < 0 ? '' : snapWeight(String(Math.max(0, current + delta)))
+    setWeights(nextVal)
+    persistForm(reps, nextVal)
   }
 
   const resetForm = () => {

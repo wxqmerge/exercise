@@ -72,6 +72,14 @@ export const persistDayEntries = (type, day, entries) => {
   writeAll(all)
 }
 
+export const saveEntry = (type, day, exerciseId, reps, weights) => {
+  const all = readAll()
+  const normalized = normalizeEntry({ reps, weights })
+  all[type] = { ...(all[type] || {}), [day]: { ...(all[type]?.[day] || {}), [exerciseId]: normalized } }
+  writeAll(all)
+  syncToServer()
+}
+
 export const findEntry = (type, day, exerciseId) => {
   const forType = readAll()[type] || {}
   const forDay = forType[day]
