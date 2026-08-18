@@ -77,12 +77,12 @@ LOG_JS = (
     "var doy = Math.floor((today - new Date(today.getFullYear(),0,0)) / 86400000);"
     "var dayNum = ((doy - 1) % 3) + 1;"
     "var dayLabel = 'Day ' + dayNum;"
-    "var h = document.querySelector('h2, h3');"
-    "var el = document.querySelector('h2');"
-    "var found = false;"
-    "document.querySelectorAll('h2').forEach(function(h2){ if(h2.textContent.trim() === dayLabel){ h2.scrollIntoView({behavior:'smooth', block:'start'}); h2.style.background = '#1c2430'; h2.style.color = '#fff'; found = true; } });"
+    "document.querySelectorAll('h2').forEach(function(h2){ if(h2.textContent.trim() === dayLabel){ h2.scrollIntoView({behavior:'smooth', block:'start'}); h2.style.background = '#1c2430'; h2.style.color = '#fff'; } });"
     "}"
-    "if (location.protocol === 'file:') {"
+    "var entries = typeof EMBEDDED_ENTRIES !== 'undefined' ? EMBEDDED_ENTRIES : null;"
+    "if (entries) {"
+    "render(entries);"
+    "} else if (location.protocol === 'file:') {"
     "var local = {};"
     "try { local = JSON.parse(localStorage.getItem('exercise-entries') || '{}'); } catch (e) { local = {}; }"
     "render(local);"
@@ -223,7 +223,7 @@ def page_css():
     return "\n".join(BASE_CSS)
 
 
-def build_index(files, chosen) -> str:
+def build_index(files, chosen, entries) -> str:
     parts = [
         "<!doctype html>",
         '<html lang="en"><head><meta charset="utf-8">',
@@ -232,6 +232,7 @@ def build_index(files, chosen) -> str:
         "<style>",
         page_css(),
         "</style></head><body>",
+        "<script>var EMBEDDED_ENTRIES = " + json.dumps(entries) + ";</script>",
         "<header><h1>Workouts</h1><p>Pick a routine.</p></header>",
         "<main>",
     ]
@@ -259,7 +260,16 @@ def build_index(files, chosen) -> str:
     return "\n".join(parts)
 
 
-def build_page(routine, files, chosen) -> str:
+def load_entries():
+    p = REPO / "data" / "entries.json"
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            return {}
+    return {}
+
+def build_page(routine, files, chosen, entries) -> str:
     parts = [
         "<!doctype html>",
         '<html lang="en"><head><meta charset="utf-8">',
@@ -268,6 +278,7 @@ def build_page(routine, files, chosen) -> str:
         "<style>",
         page_css(),
         "</style></head><body>",
+        "<script>var EMBEDDED_ENTRIES = " + json.dumps(entries) + ";</script>",
         "<header><h1>" + routine["title"] + "</h1>"
         + (f"<p>{routine['note']}</p>" if routine["note"] else "")
         + "</header>",
@@ -320,10 +331,11 @@ def main() -> None:
     print("\n".join(report))
 
     OUT_DIR.mkdir(exist_ok=True)
-    (OUT_DIR / "index.html").write_text(build_index(files, chosen), encoding="utf-8")
+    entries = load_entries()
+    (OUT_DIR / "index.html").write_text(build_index(files, chosen, entries), encoding="utf-8")
     for r in ROUTINES:
         out = OUT_DIR / f"{r['slug']}.html"
-        out.write_text(build_page(r, files, chosen), encoding="utf-8")
+        out.write_text(build_page(r, files, chosen, entries), encoding="utf-8")
         print(f"{out}  {out.stat().st_size/1024/1024:.2f} MB")
 
 
