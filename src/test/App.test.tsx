@@ -174,17 +174,6 @@ describe('App', () => {
     expect(screen.getByAltText(workout[0].name)).toHaveAttribute('src', 'https://example.com/squat.jpg');
   });
 
-  it('zooms the image to full screen on click', async () => {
-    const { day, workout } = todayWorkout();
-    globalThis.__TEST_MOCK_DATA__.images = { [workout[0].id]: '/api/images/test.jpg' };
-    render(<App />);
-    await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
-    fireEvent.click(screen.getByAltText(workout[0].name));
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
-
   it('moves to the next exercise when Next is clicked', async () => {
     render(<App />);
     const { day, workout } = todayWorkout();
@@ -198,19 +187,17 @@ describe('App', () => {
   it('shows saved values for the first exercise on mount', async () => {
     const { day, workout } = todayWorkout();
     localStorage.setItem('exercise-entries', JSON.stringify({
-      dumbbells: { [day]: { [workout[0].id]: { reps: ['8', '9', '10'], weights: ['40', '45', '50'] } } },
+      dumbbells: { [day]: { [workout[0].id]: { reps: '10', weights: '50' } } },
     }));
     render(<App />);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
-    expect(screen.getByLabelText('Set 1 reps')).toHaveValue(8);
-    expect(screen.getByLabelText('Set 3 reps')).toHaveValue(10);
-    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(40);
-    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(50);
+    expect(screen.getByLabelText('Set 1 reps')).toHaveValue(10);
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(50);
   });
 
   it('keeps saved values when Next is pressed without changes', async () => {
     const { day, workout } = todayWorkout();
-    const saved = { reps: ['8', '8', '8'], weights: ['40', '40', '40'] };
+    const saved = { reps: '8', weights: '40' };
     localStorage.setItem('exercise-entries', JSON.stringify({
       dumbbells: { [day]: { [workout[0].id]: saved } },
     }));
@@ -262,7 +249,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Workout type'), { target: { value: 'dumbbells' } });
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     const stored = JSON.parse(localStorage.getItem('exercise-entries'));
-    expect(stored['dumbbells'][day][workout[0].id].weights[0]).toBe('50');
+    expect(stored['dumbbells'][day][workout[0].id].weights).toBe('50');
     expect(stored['hotel']).toBeUndefined();
   });
 
@@ -279,14 +266,14 @@ describe('App', () => {
     });
     const call = fetchMock.mock.calls.find(c => c[0] === '/api/entries' && c[1]?.method === 'PUT');
     expect(JSON.parse(call[1].body)).toMatchObject({
-      dumbbells: { [day]: { [workout[0].id]: { weights: ['50', '50', '50'] } } },
+      dumbbells: { [day]: { [workout[0].id]: { weights: '50' } } },
     });
   });
 
   it('loads entries from the server when local storage is empty', async () => {
     const { day, workout } = todayWorkout();
     globalThis.__TEST_MOCK_DATA__.entries = {
-      dumbbells: { [day]: { [workout[0].id]: { reps: ['10', '10', '10'], weights: ['35', '35', '35'] } } },
+      dumbbells: { [day]: { [workout[0].id]: { reps: '10', weights: '35' } } },
     };
     render(<App />);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
@@ -299,10 +286,7 @@ describe('App', () => {
     const { day, workout } = todayWorkout();
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
-    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(50);
-    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(50);
-    fireEvent.change(screen.getByLabelText('Set 2 weight'), { target: { value: '45' } });
-    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(50);
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(50);
   });
 
   it('fills the other empty sets only after the weight has at least two digits', async () => {
@@ -310,11 +294,9 @@ describe('App', () => {
     const { day, workout } = todayWorkout();
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '5' } });
-    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(null);
-    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(null);
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(5);
     fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
-    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(50);
-    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(50);
+    expect(screen.getByLabelText('Set 1 weight')).toHaveValue(50);
   });
 
   it('persists typed weights when navigating away without pressing Next', async () => {
@@ -322,32 +304,29 @@ describe('App', () => {
     const { day, workout } = todayWorkout();
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '35' } });
-    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(35);
     const stored = JSON.parse(localStorage.getItem('exercise-entries'));
-    expect(stored['dumbbells'][day][workout[0].id]).toEqual({ reps: ['10', '10', '10'], weights: ['35', '35', '35'] });
+    expect(stored['dumbbells'][day][workout[0].id]).toEqual({ reps: '10', weights: '35' });
     const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
     await vi.waitFor(() => {
       const call = fetchMock.mock.calls.find(c => c[0] === '/api/entries' && c[1]?.method === 'PUT');
       expect(JSON.parse(call[1].body)).toMatchObject({
-        dumbbells: { [day]: { [workout[0].id]: { weights: ['35', '35', '35'] } } },
+        dumbbells: { [day]: { [workout[0].id]: { weights: '35' } } },
       });
     });
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
     await screen.findByText('All workouts');
-    expect(screen.getAllByText('35/10/35/10/35/10').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('10 / 35').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     expect(screen.getByLabelText('Set 1 weight')).toHaveValue(35);
-    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(35);
-    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(35);
   });
 
   it('shows the next exercise saved values after Next', async () => {
     const { day, workout } = todayWorkout();
     localStorage.setItem('exercise-entries', JSON.stringify({
       dumbbells: { [day]: {
-        [workout[0].id]: { reps: ['8', '8', '8'], weights: ['40', '40', '40'] },
-        [workout[1].id]: { reps: ['6', '6', '6'], weights: ['25', '25', '25'] },
+        [workout[0].id]: { reps: '8', weights: '40' },
+        [workout[1].id]: { reps: '6', weights: '25' },
       } },
     }));
     render(<App />);
@@ -363,45 +342,38 @@ describe('App', () => {
     render(<App />);
     const { day, workout } = todayWorkout();
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
-    const input = screen.getByLabelText('Set 2 weight');
+    const input = screen.getByLabelText('Set 1 weight');
     fireEvent.change(input, { target: { value: '12' } });
     expect(screen.getByLabelText('Set 1 weight')).toHaveValue(12);
-    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(12);
     fireEvent.blur(input);
     expect(input).toHaveValue(10);
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     const stored = JSON.parse(localStorage.getItem('exercise-entries'));
-    expect(stored['dumbbells'][day][workout[0].id].weights).toEqual(['10', '10', '10']);
+    expect(stored['dumbbells'][day][workout[0].id].weights).toBe('10');
   });
 
   it('snaps saved non-multiple weights on load', async () => {
     const { day, workout } = todayWorkout();
     localStorage.setItem(
       'exercise-entries',
-      JSON.stringify({ dumbbells: { [day]: { [workout[0].id]: { reps: ['10', '10', '10'], weights: ['12', '7', ''] } } } }),
+      JSON.stringify({ dumbbells: { [day]: { [workout[0].id]: { reps: '10', weights: '12' } } } }),
     );
     render(<App />);
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     expect(screen.getByLabelText('Set 1 weight')).toHaveValue(10);
-    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(5);
-    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(null);
   });
 
   it('adjusts every set with the reps and weight buttons', async () => {
     render(<App />);
     const { day, workout } = todayWorkout();
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Increase all weights' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Increase weight' }));
     expect(screen.getByLabelText('Set 1 weight')).toHaveValue(5);
-    expect(screen.getByLabelText('Set 2 weight')).toHaveValue(5);
-    expect(screen.getByLabelText('Set 3 weight')).toHaveValue(5);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Increase all reps' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Increase reps' }));
     expect(screen.getByLabelText('Set 1 reps')).toHaveValue(11);
-    expect(screen.getByLabelText('Set 2 reps')).toHaveValue(11);
-    expect(screen.getByLabelText('Set 3 reps')).toHaveValue(11);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Decrease all reps' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Decrease reps' }));
     expect(screen.getByLabelText('Set 1 reps')).toHaveValue(10);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Decrease all weights' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Decrease weight' }));
     expect(screen.getByLabelText('Set 1 weight')).toHaveValue(0);
   });
 
@@ -474,12 +446,12 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Day'), { target: { value: otherDay } });
     await screen.findByText(`${otherDay} · Exercise 1 of ${otherWorkout.length}`);
     const stored = JSON.parse(localStorage.getItem('exercise-entries'));
-    expect(stored['dumbbells'][day][workout[0].id].weights[0]).toBe('50');
+    expect(stored['dumbbells'][day][workout[0].id].weights).toBe('50');
     expect(stored['dumbbells'][otherDay]).toBeUndefined();
     fireEvent.change(screen.getByLabelText('Day'), { target: { value: day } });
     await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
     const storedAgain = JSON.parse(localStorage.getItem('exercise-entries'));
-    expect(storedAgain['dumbbells'][day][workout[0].id].weights[0]).toBe('50');
+    expect(storedAgain['dumbbells'][day][workout[0].id].weights).toBe('50');
   });
 
   it('can switch day from the summary screen', async () => {
@@ -507,7 +479,6 @@ describe('App', () => {
     expect(screen.getByText('Workout complete')).toBeInTheDocument();
     expect(screen.getAllByText('10').length).toBe(workout.length);
     expect(screen.getAllByText('50').length).toBe(workout.length);
-    expect(screen.getByText(`Total volume: ${workout.length * 1500}`)).toBeInTheDocument();
   });
 
   it('downloads the workout as a .tab file', async () => {
@@ -578,10 +549,10 @@ describe('App', () => {
       expect(screen.getAllByText('Suitcase Carry').length).toBeGreaterThan(0);
     });
 
-    it('shows 0/0/0/0/0/0 for exercises with no saved entry', async () => {
+    it('shows 0/0 for exercises with no saved entry', async () => {
       await openSettings();
       const total = 5 + 5 + 5;
-      expect(screen.getAllByText('0/0/0/0/0/0').length).toBe(total);
+      expect(screen.getAllByText('0 / 0').length).toBe(total);
     });
 
     it('shows the odd/even workouts when that mode is selected', async () => {

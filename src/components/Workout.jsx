@@ -214,12 +214,6 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
   }
 
   if (finished) {
-    const totalVolume = exercises.reduce((sum, ex) => {
-      const e = entries[ex.id]
-      const r = e && Array.isArray(e.reps) ? e.reps : []
-      const w = e && Array.isArray(e.weights) ? e.weights : []
-      return sum + r.reduce((s, rep, i) => s + (Number(rep) || 0) * (Number(w[i]) || 0), 0)
-    }, 0)
     return (
       <main className="min-h-screen bg-[#f5f5f0] flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow p-8 max-w-md w-full">
@@ -247,7 +241,6 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
               })}
             </tbody>
           </table>
-            <p className="mt-4 text-right font-semibold">Total volume: {totalVolume}</p>
             <div className="mt-4 flex items-center justify-center gap-2">
               <span className="text-xs text-gray-400 flex items-center gap-1">
                 Workout
