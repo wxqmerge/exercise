@@ -88,7 +88,6 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
   const [urlDraft, setUrlDraft] = useState('')
   const [imageError, setImageError] = useState(false)
   const [imageHint, setImageHint] = useState('')
-  const [zoomed, setZoomed] = useState(false)
   const [saving, setSaving] = useState(false)
   const fileRef = useRef(null)
   const backupRef = useRef(null)
@@ -435,8 +434,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
             <img
               src={images[exercise.id]}
               alt={exercise.name}
-              className="mt-4 w-full h-[70vh] object-contain bg-gray-100 cursor-zoom-in"
-              onClick={() => setZoomed(true)}
+              className="mt-4 w-full h-[70vh] object-contain bg-gray-100"
               onError={() => {
                 setImageError(true)
                 setUrlDraft(images[exercise.id] || '')
@@ -662,27 +660,6 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
           </button>
         </div>
       </div>
-
-      {zoomed && (
-        <div
-          role="dialog"
-          aria-label={`${exercise.name} image`}
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setZoomed(false)}
-        >
-          <img
-            src={images[exercise.id]}
-            alt={exercise.name}
-            className="max-w-full max-h-full object-contain"
-          />
-          <button
-            onClick={() => setZoomed(false)}
-            className="absolute top-4 right-4 px-3 py-1 rounded bg-white/20 text-white text-sm hover:bg-white/30"
-          >
-            Close
-          </button>
-        </div>
-      )}
     </main>
   )
 }
