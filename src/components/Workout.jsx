@@ -6,13 +6,8 @@ import { applySwaps } from '../utils/swaps'
 import { joinValues } from '../utils/format'
 import { IMAGE_EXTENSIONS } from '../utils/constants'
 
-const DEFAULT_REPS = ['10', '10', '10']
-const DEFAULT_WEIGHTS = ['', '', '']
-
-const formSet = (entry, key, fallback) => {
-  const values = entry && Array.isArray(entry[key]) ? entry[key] : null
-  return [0, 1, 2].map(i => (values && values[i] != null ? String(values[i]) : fallback[i]))
-}
+const DEFAULT_REPS = '10'
+const DEFAULT_WEIGHTS = ''
 
 const snapWeight = (value) => {
   const n = Number(value)
@@ -21,7 +16,16 @@ const snapWeight = (value) => {
   return snapped === 0 ? '' : String(snapped)
 }
 
-const weightSet = (entry) => formSet(entry, 'weights', DEFAULT_WEIGHTS).map(snapWeight)
+const getSavedValue = (entry, key, fallback) => {
+  if (!entry) return fallback
+  const v = entry[key]
+  if (Array.isArray(v)) {
+    const first = v.find(x => x !== '' && x != null) ?? v[0] ?? fallback
+    return String(first)
+  }
+  if (v == null || v === '') return fallback
+  return String(v)
+}
 
 const imageSearchUrl = (name) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${name} exercise gif`)}&tbs=iftype:animated`
@@ -77,8 +81,8 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
   const loadFormFromEntries = (exercise, entriesMap) => {
     const saved = exercise ? entriesMap[getStorageKey(exercise)] : null
     return {
-      reps: formSet(saved, 'reps', DEFAULT_REPS),
-      weights: weightSet(saved)
+      reps: getSavedValue(saved, 'reps', DEFAULT_REPS),
+      weights: snapWeight(getSavedValue(saved, 'weights', DEFAULT_WEIGHTS))
     }
   }
   const [index, setIndex] = useState(0)
@@ -100,8 +104,10 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     const exercise = exercises[index]
     if (!exercise) return
     const key = getStorageKey(exercise)
+    const repsArr = Array.isArray(nextReps) ? nextReps : [nextReps, nextReps, nextReps]
+    const weightsArr = Array.isArray(nextWeights) ? nextWeights : [snapWeight(nextWeights), snapWeight(nextWeights), snapWeight(nextWeights)]
     setEntries(prev => {
-      const updated = { ...prev, [key]: { reps: [...nextReps], weights: nextWeights.map(snapWeight) } }
+      const updated = { ...prev, [key]: { reps: repsArr, weights: weightsArr } }
       persistDayEntries(workoutType, day, updated)
       syncToServer()
       return updated
@@ -112,7 +118,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     const exercise = exercises[index]
     if (!exercise) return
     const key = getStorageKey(exercise)
-    const updatedEntries = { ...entries, [key]: { reps: [...reps], weights: weights.map(snapWeight) } }
+    const updatedEntries = { ...entries, [key]: { reps, weights: snapWeight(weights) } }
     setEntries(updatedEntries)
     persistDayEntries(workoutType, day, updatedEntries)
     syncToServer()
@@ -125,13 +131,14 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
   }
 
   const nudgeReps = (delta) => {
-    const next = reps.map(p => (p === '' && delta < 0 ? p : String(Math.max(0, (Number(p) || 0) + delta))))
+    const next = reps === '' && delta < 0 ? '' : String(Math.max(0, (Number(reps) || 0) + delta))
     setReps(next)
     persistForm(next, weights)
   }
 
   const nudgeWeights = (delta) => {
-    const next = weights.map(p => (p === '' && delta < 0 ? p : String(Math.max(0, Math.round((Number(p) || 0) / 5) * 5 + delta))))
+    const current = Number(weights) || 0
+    const next = weights === '' && delta < 0 ? '' : String(Math.max(0, Math.round(current / 5) * 5 + delta))
     setWeights(next)
     persistForm(reps, next)
   }
@@ -170,8 +177,8 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     if (index === 0) return
     const prev = exercises[index - 1]
     const saved = entries[prev.id]
-    setReps(formSet(saved, 'reps', DEFAULT_REPS))
-    setWeights(weightSet(saved))
+    setReps(getSavedValue(saved, 'reps', DEFAULT_REPS))
+    setWeights(snapWeight(getSavedValue(saved, 'weights', DEFAULT_WEIGHTS)))
     resetForm()
     setIndex(i => i - 1)
   }
@@ -180,8 +187,8 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
     setEntries({})
     clearDayEntries(workoutType, day)
     syncToServer()
-    setReps([...DEFAULT_REPS])
-    setWeights([...DEFAULT_WEIGHTS])
+    setReps(DEFAULT_REPS)
+    setWeights(DEFAULT_WEIGHTS)
     resetForm()
     setIndex(0)
   }
@@ -352,7 +359,7 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
 
   const downloadWorkout = () => {
     const all = loadAllEntries()
-    const lines = [['Day', 'Exercise', 'Set 1', 'Set 2', 'Set 3']]
+    const lines = [['Day', 'Exercise', 'Reps', 'Weight']]
     for (const d of days) {
       const dayEntries = all[workoutType]?.[d] || {}
       for (const ex of applySwaps(getDayWorkout(workoutType, dayMode, d), d, exerciseSwaps, workoutType)) {
@@ -361,7 +368,8 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
         lines.push([
           d,
           ex.name,
-          ...[0, 1, 2].map(i => `${e?.weights[i] || 0}/${e?.reps[i] || 0}`),
+          e?.reps || '',
+          e?.weights || '',
         ])
       }
     }
@@ -524,94 +532,87 @@ export default function Workout({ day, days = [], dayMode = 'numbered', workoutT
         {imageHint && <p className="px-4 pb-2 text-xs text-red-500">{imageHint}</p>}
 
         <div className="px-6 pb-2">
-          <div className="grid grid-cols-[3rem_1fr_auto_1fr_auto] gap-2">
-            <span />
+          <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2">
             <span className="text-sm text-gray-600">Reps</span>
             <span />
             <span className="text-sm text-gray-600">Weight</span>
             <span />
           </div>
-          <div className="mt-1 space-y-2">
-            {reps.map((r, i) => (
-              <div key={i} className="grid grid-cols-[3rem_1fr_auto_1fr_auto] gap-2 items-center" style={{display: i>0 ? 'none' : 'block'}}>
-                <span className="text-sm text-gray-500">Set {i + 1}</span>
-                <input
-                  type="number"
-                  min="0"
-                  inputMode="numeric"
-                  value={r}
-                  onChange={e => {
-                    const next = reps.map((p, j) => (j === i ? e.target.value : p))
-                    setReps(next)
-                    persistForm(next, weights)
-                  }}
-                  aria-label={`Set ${i + 1} reps`}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  placeholder="0"
-                />
-                <span className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => nudgeReps(-1)}
-                    aria-label="Decrease all reps"
-                    className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
-                  >
-                    −
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => nudgeReps(1)}
-                    aria-label="Increase all reps"
-                    className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
-                  >
-                    +
-                  </button>
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  step="5"
-                  inputMode="decimal"
-                  value={weights[i]}
-                  onChange={e => {
-                    const next = e.target.value
-                    const updated = next.length >= 2
-                      ? weights.map((p, j) => (j === i ? next : p === '' ? next : p))
-                      : weights.map((p, j) => (j === i ? next : p))
-                    setWeights(updated)
-                    persistForm(reps, updated)
-                  }}
-                  onBlur={() => {
-                    const updated = weights.map((p, j) => (j === i ? snapWeight(p) : p))
-                    if (updated[i] !== weights[i]) {
-                      setWeights(updated)
-                      persistForm(reps, updated)
-                    }
-                  }}
-                  aria-label={`Set ${i + 1} weight`}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  placeholder="0"
-                />
-                <span className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => nudgeWeights(-5)}
-                    aria-label="Decrease all weights"
-                    className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
-                  >
-                    −
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => nudgeWeights(5)}
-                    aria-label="Increase all weights"
-                    className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
-                  >
-                    +
-                  </button>
-                </span>
-              </div>
-            ))}
+          <div className="mt-1">
+            <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center">
+              <input
+                type="number"
+                min="0"
+                inputMode="numeric"
+                value={reps}
+                onChange={e => {
+                  const next = e.target.value
+                  setReps(next)
+                  persistForm(next, weights)
+                }}
+                aria-label="Set 1 reps"
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                placeholder="0"
+              />
+              <span className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => nudgeReps(-1)}
+                  aria-label="Decrease reps"
+                  className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  onClick={() => nudgeReps(1)}
+                  aria-label="Increase reps"
+                  className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
+                >
+                  +
+                </button>
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="5"
+                inputMode="decimal"
+                value={weights}
+                onChange={e => {
+                  const next = e.target.value
+                  setWeights(next)
+                  persistForm(reps, next)
+                }}
+                onBlur={() => {
+                  const snapped = snapWeight(weights)
+                  if (snapped !== weights) {
+                    setWeights(snapped)
+                    persistForm(reps, snapped)
+                  }
+                }}
+                aria-label="Set 1 weight"
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                placeholder="0"
+              />
+              <span className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => nudgeWeights(-5)}
+                  aria-label="Decrease weight"
+                  className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  onClick={() => nudgeWeights(5)}
+                  aria-label="Increase weight"
+                  className="w-7 h-8 border border-gray-300 rounded bg-white text-gray-600 text-sm leading-none hover:bg-gray-50"
+                >
+                  +
+                </button>
+              </span>
+            </div>
           </div>
         </div>
 

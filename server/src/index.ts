@@ -184,6 +184,7 @@ const ENTRIES_FILE = path.join(__dirname, '../../data/entries.json');
 
 const readEntriesFile = (): Record<string, any> => readJsonFile(ENTRIES_FILE);
 
+const isValue = (v: unknown) => typeof v === 'string' || typeof v === 'number';
 const isValueArray = (v: unknown) =>
   Array.isArray(v) && v.length <= 3 && v.every(x => typeof x === 'string' || typeof x === 'number');
 
@@ -215,13 +216,17 @@ app.put('/api/entries', (req, res) => {
           res.status(400).json({ success: false, error: { message: `Invalid exercise id: ${exId}` } });
           return;
         }
-        if (!entry || typeof entry !== 'object' || !isValueArray(entry.reps) || !isValueArray(entry.weights)) {
+        if (!entry || typeof entry !== 'object') {
           res.status(400).json({ success: false, error: { message: `Invalid entry for ${exId}` } });
           return;
         }
+        const repsVal = isValue(entry.reps) ? String(entry.reps) : isValueArray(entry.reps) ? String(entry.reps[0] ?? '') : '';
+        const weightsVal = isValue(entry.weights) ? String(entry.weights) : isValueArray(entry.weights) ? String(entry.weights[0] ?? '') : '';
+        const repsArr = [repsVal, repsVal, repsVal];
+        const weightsArr = [weightsVal, weightsVal, weightsVal];
         next[type][day][exId] = {
-          reps: entry.reps.map(String).slice(0, 3),
-          weights: entry.weights.map(String).slice(0, 3),
+          reps: repsArr,
+          weights: weightsArr,
         };
       }
     }

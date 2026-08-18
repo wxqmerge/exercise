@@ -505,8 +505,8 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: i === workout.length - 1 ? 'Finish' : 'Next' }));
     }
     expect(screen.getByText('Workout complete')).toBeInTheDocument();
-    expect(screen.getAllByText('10 / 10 / 10').length).toBe(workout.length);
-    expect(screen.getAllByText('50 / 50 / 50').length).toBe(workout.length);
+    expect(screen.getAllByText('10').length).toBe(workout.length);
+    expect(screen.getAllByText('50').length).toBe(workout.length);
     expect(screen.getByText(`Total volume: ${workout.length * 1500}`)).toBeInTheDocument();
   });
 
@@ -521,8 +521,8 @@ describe('App', () => {
       expect(blobCalls()).toHaveLength(1),
     );
     const text = await (blobCalls()[0][0] as Blob).text();
-    expect(text.split('\n')[0]).toBe('Day\tExercise\tSet 1\tSet 2\tSet 3');
-    expect(text).toContain(`${day}\t${workout[0].name}\t50/10\t50/10\t50/10`);
+    expect(text.split('\n')[0]).toBe('Day\tExercise\tReps\tWeight');
+    expect(text).toContain(`${day}\t${workout[0].name}\t10\t50`);
   });
 
   it('exports the replacement exercise when a swap is configured', async () => {
@@ -545,7 +545,7 @@ describe('App', () => {
       expect(blobCalls()).toHaveLength(1),
     );
     const text = await (blobCalls()[0][0] as Blob).text();
-    expect(text).toContain(`${day}\t${replacement.name}\t50/10\t50/10\t50/10`);
+    expect(text).toContain(`${day}\t${replacement.name}\t10\t50`);
     expect(text).not.toContain(original.name);
   });
 
@@ -611,7 +611,7 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
       await screen.findByText('All workouts');
       fireEvent.change(screen.getByLabelText('Day mode'), { target: { value: 'numbered' } });
-      expect(screen.getByText('50/10/50/10/50/10')).toBeInTheDocument();
+      expect(screen.getByText('10 / 50')).toBeInTheDocument();
     });
 
     it('shows the last saved weight/rep for each exercise', async () => {
@@ -620,14 +620,10 @@ describe('App', () => {
       await screen.findByText(`${day} · Exercise 1 of ${workout.length}`);
       fireEvent.change(screen.getByLabelText('Set 1 weight'), { target: { value: '50' } });
       fireEvent.change(screen.getByLabelText('Set 1 reps'), { target: { value: '10' } });
-      fireEvent.change(screen.getByLabelText('Set 2 weight'), { target: { value: '45' } });
-      fireEvent.change(screen.getByLabelText('Set 2 reps'), { target: { value: '12' } });
-      fireEvent.change(screen.getByLabelText('Set 3 weight'), { target: { value: '40' } });
-      fireEvent.change(screen.getByLabelText('Set 3 reps'), { target: { value: '15' } });
       fireEvent.click(screen.getByRole('button', { name: 'Next' }));
       fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
       await screen.findByText('All workouts');
-      expect(screen.getByText('50/10/45/12/40/15')).toBeInTheDocument();
+      expect(screen.getByText('10 / 50')).toBeInTheDocument();
     });
 
     it('saves an exercise replacement and applies it to the workout screen', async () => {
